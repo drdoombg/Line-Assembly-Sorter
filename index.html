@@ -130,8 +130,8 @@
 <header>
   <h1>LineAssemblyHub</h1>
   <span class="tag">v0.1</span>
-  <div class="status" id="storage-status">–</div>
-  <button class="btn small" id="connect-folder-btn" style="background:#0f766e;color:#fff;border-color:#0f766e;">Connect month folder…</button>
+  <div class="status" id="storage-status" title="How much of your browser's local database is being used by this app. PDFs are stored on your machine only — nothing goes to the internet.">–</div>
+  <button class="btn small" id="connect-folder-btn" title="Chrome/Edge only. Pick your month folder once; the app reads existing PDFs from it and saves updates back into it directly — no downloads." style="background:#0f766e;color:#fff;border-color:#0f766e;">Connect month folder…</button>
 </header>
 
 <nav class="tabs">
@@ -167,8 +167,9 @@
       <div class="panel-header">
         <h2>Products (month bundle)</h2>
         <div class="actions">
-          <button class="btn small" id="import-existing">Import existing PDFs</button>
+          <button class="btn small" id="import-existing" title="Multi-select PDFs from your month folder in one click">Import existing PDFs</button>
           <button class="btn small" id="show-add-product">+ Add</button>
+          <button class="btn small" id="download-all" title="Download every product PDF as separate files (browser may ask permission for multiple downloads)">Download all</button>
           <button class="btn small primary" id="merge-export" disabled>Merge &amp; Export</button>
         </div>
         <input type="file" id="import-existing-input" accept="application/pdf" multiple class="hidden">
@@ -427,7 +428,8 @@ async function loadScan(file) {
   toast('Loading scan…');
   try {
     const bytes = await readFileAsBytes(file);
-    const pdfDoc = await pdfjsLib.getDocument({ data: bytes }).promise;
+    // Pass a copy to pdf.js so it can transfer/detach freely without breaking pdf-lib later
+    const pdfDoc = await pdfjsLib.getDocument({ data: bytes.slice() }).promise;
     state.scan = {
       filename: file.name,
       pdfBytes: bytes,
@@ -539,6 +541,31 @@ function escapeHtml(s) {
 // Bulk import existing product PDFs
 document.getElementById('import-existing').addEventListener('click', () => {
   document.getElementById('import-existing-input').click();
+});
+
+// Download all products as separate PDFs (or save to connected folder)
+document.getElementById('download-all').addEventListener('click', async () => {
+  if (state.products.length === 0) { toast('No products to download', 'error'); return; }
+
+  if (folderHandle) {
+    let ok = 0, fail = 0;
+    toast('Saving to ' + folderHandle.name + '…');
+    for (const p of state.products) {
+      const success = await saveProductToFolder(p);
+      if (success) ok++; else fail++;
+    }
+    toast(`Saved ${ok} to folder${fail ? ' (' + fail + ' failed)' : ''}`, ok > 0 ? 'success' : 'error');
+    return;
+  }
+
+  // No folder connected — trigger individual downloads with small delays.
+  // Browser may show "This site wants to download multiple files — allow?" — say yes.
+  toast('Downloading ' + state.products.length + ' PDFs individually…');
+  for (const p of state.products) {
+    downloadBytes(p.pdfBytes, `${p.name}.pdf`);
+    await new Promise(r => setTimeout(r, 350));
+  }
+  toast('Done. Connect a month folder to skip the multi-download prompt next time.', 'success');
 });
 document.getElementById('import-existing-input').addEventListener('change', async (e) => {
   const files = Array.from(e.target.files || []);
@@ -709,17 +736,17 @@ document.getElementById('merge-export').addEventListener('click', async () => {
   }
 
   toast('Merging…');
-  const zip = folderHandle ? null : new JSZip();
+  const updatedProducts = [];
   let savedToFolder = 0;
 
   for (const productId of Object.keys(byProduct)) {
     const product = state.products.find(p => p.id === productId);
     if (!product) continue;
 
-    // Load existing product PDF
-    const productDoc = await PDFLib.PDFDocument.load(product.pdfBytes);
+    // Load existing product PDF (slice = defensive copy against buffer detachment)
+    const productDoc = await PDFLib.PDFDocument.load(product.pdfBytes.slice());
     // Load scan PDF for copying
-    const scanDoc = await PDFLib.PDFDocument.load(state.scan.pdfBytes);
+    const scanDoc = await PDFLib.PDFDocument.load(state.scan.pdfBytes.slice());
     const pageIndices = byProduct[productId];
     const copiedPages = await productDoc.copyPages(scanDoc, pageIndices);
     copiedPages.forEach(cp => productDoc.addPage(cp));
@@ -729,26 +756,24 @@ document.getElementById('merge-export').addEventListener('click', async () => {
     product.pageCount = productDoc.getPageCount();
     product.lastUpdated = new Date().toISOString();
     await dbPut('products', product);
+    updatedProducts.push(product);
 
     if (folderHandle) {
       const ok = await saveProductToFolder(product);
       if (ok) savedToFolder++;
-    } else {
-      zip.file(`${product.name}.pdf`, newBytes);
     }
   }
 
   if (folderHandle) {
     toast(`Saved ${savedToFolder} PDFs directly to ${folderHandle.name}`, 'success');
   } else {
-    const zipBlob = await zip.generateAsync({ type: 'blob' });
-    const url = URL.createObjectURL(zipBlob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `LineAssembly_${new Date().toISOString().slice(0,10)}.zip`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    toast('Merged and updated ' + Object.keys(byProduct).length + ' products', 'success');
+    // No folder connected — download each updated PDF as a separate file
+    toast('Downloading ' + updatedProducts.length + ' updated PDFs…');
+    for (const p of updatedProducts) {
+      downloadBytes(p.pdfBytes, `${p.name}.pdf`);
+      await new Promise(r => setTimeout(r, 350));
+    }
+    toast('Merged. Connect a month folder to skip multi-download prompts.', 'success');
   }
   updateProductsList();
   updateStorageStatus();
