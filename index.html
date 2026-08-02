@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LineAssemblyHub</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 14px; color: #1a1a1a; background: #f5f5f4; }
+  body { display: flex; flex-direction: column; }
+
+  header { background: #1e293b; color: #f8fafc; padding: 10px 16px; display: flex; align-items: center; gap: 16px; border-bottom: 3px solid #0f766e; }
+  header h1 { font-size: 16px; font-weight: 600; letter-spacing: 0.3px; }
+  header .tag { font-size: 11px; padding: 2px 8px; background: #0f766e; border-radius: 3px; font-weight: 500; }
+  header .status { margin-left: auto; font-size: 12px; opacity: 0.8; }
+
+  nav.tabs { display: flex; background: #e7e5e4; border-bottom: 1px solid #d6d3d1; }
+  nav.tabs button { flex: 0 0 auto; padding: 10px 20px; background: transparent; border: none; border-right: 1px solid #d6d3d1; cursor: pointer; font-size: 13px; font-weight: 500; color: #57534e; }
+  nav.tabs button.active { background: #f5f5f4; color: #1a1a1a; border-bottom: 2px solid #0f766e; margin-bottom: -1px; }
+  nav.tabs button:hover:not(.active) { background: #f0efee; }
+
+  main { flex: 1; overflow: hidden; display: flex; }
+  .tab-content { flex: 1; display: none; overflow: hidden; }
+  .tab-content.active { display: flex; }
+
+  /* Route & Merge tab */
+  #tab-route { flex-direction: row; gap: 0; }
+  #route-scan-panel { flex: 1 1 60%; display: flex; flex-direction: column; border-right: 1px solid #d6d3d1; background: #fafaf9; }
+  #route-products-panel { flex: 1 1 40%; display: flex; flex-direction: column; background: #fff; min-width: 320px; }
+
+  .panel-header { padding: 10px 14px; background: #fff; border-bottom: 1px solid #e7e5e4; display: flex; align-items: center; gap: 10px; }
+  .panel-header h2 { font-size: 13px; font-weight: 600; color: #44403c; text-transform: uppercase; letter-spacing: 0.5px; }
+  .panel-header .actions { margin-left: auto; display: flex; gap: 6px; }
+
+  button.btn { padding: 6px 12px; font-size: 12px; border: 1px solid #d6d3d1; background: #fff; border-radius: 4px; cursor: pointer; font-weight: 500; color: #292524; }
+  button.btn:hover { background: #f5f5f4; border-color: #a8a29e; }
+  button.btn.primary { background: #0f766e; color: #fff; border-color: #0f766e; }
+  button.btn.primary:hover { background: #115e59; }
+  button.btn.danger { color: #b91c1c; }
+  button.btn.small { padding: 3px 8px; font-size: 11px; }
+  button.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  #route-drop { flex: 1; overflow-y: auto; padding: 12px; }
+  #route-dropzone { border: 2px dashed #a8a29e; border-radius: 6px; padding: 40px 20px; text-align: center; color: #78716c; background: #fff; cursor: pointer; }
+  #route-dropzone.dragover { background: #ecfeff; border-color: #0f766e; color: #0f766e; }
+  #route-dropzone p { margin: 6px 0; }
+  #route-dropzone .hint { font-size: 12px; opacity: 0.7; }
+
+  #thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-top: 12px; }
+  .thumb { background: #fff; border: 1px solid #d6d3d1; border-radius: 4px; padding: 6px; cursor: pointer; position: relative; }
+  .thumb.assigned { border-color: #0f766e; box-shadow: 0 0 0 1px #0f766e; }
+  .thumb canvas { width: 100%; height: auto; display: block; background: #f5f5f4; }
+  .thumb .page-num { font-size: 10px; color: #78716c; margin-top: 4px; text-align: center; }
+  .thumb .assign-tag { position: absolute; top: 8px; right: 8px; background: #0f766e; color: #fff; font-size: 10px; padding: 2px 6px; border-radius: 3px; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .thumb select { width: 100%; margin-top: 4px; font-size: 11px; padding: 2px; }
+
+  #route-products { flex: 1; overflow-y: auto; padding: 12px; }
+  .product-row { padding: 10px; border: 1px solid #e7e5e4; border-radius: 4px; margin-bottom: 8px; background: #fafaf9; }
+  .product-row .p-header { display: flex; align-items: center; gap: 8px; }
+  .product-row .p-name { font-weight: 600; font-size: 13px; flex: 1; }
+  .product-row .p-meta { font-size: 11px; color: #78716c; margin-top: 4px; }
+  .product-row .p-actions { display: flex; gap: 4px; margin-top: 6px; }
+  .product-row .p-assigned-count { font-size: 11px; padding: 2px 6px; background: #0f766e; color: #fff; border-radius: 3px; }
+  .product-row .p-assigned-count.zero { background: #a8a29e; }
+
+  #add-product-form { padding: 10px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 4px; margin-bottom: 10px; display: none; }
+  #add-product-form.active { display: block; }
+  #add-product-form input { width: 100%; padding: 6px; margin: 4px 0; border: 1px solid #d6d3d1; border-radius: 3px; font-size: 12px; }
+  #add-product-form .row { display: flex; gap: 6px; margin-top: 6px; }
+
+  /* OCR tab */
+  #tab-ocr { flex-direction: column; }
+  #ocr-controls { padding: 12px 16px; background: #fff; border-bottom: 1px solid #e7e5e4; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  #ocr-controls select, #ocr-controls input { padding: 6px 8px; font-size: 12px; border: 1px solid #d6d3d1; border-radius: 3px; }
+  #ocr-controls label { font-size: 12px; color: #57534e; font-weight: 500; }
+  #ocr-progress { padding: 8px 16px; background: #fef3c7; border-bottom: 1px solid #fde68a; font-size: 12px; display: none; }
+  #ocr-progress.active { display: block; }
+  #ocr-progress .bar { background: #fde68a; height: 4px; border-radius: 2px; margin-top: 4px; overflow: hidden; }
+  #ocr-progress .bar-fill { background: #d97706; height: 100%; width: 0%; transition: width 0.2s; }
+
+  #ocr-view { flex: 1; display: flex; overflow: hidden; }
+  #ocr-page-view { flex: 1 1 60%; overflow: auto; padding: 16px; background: #f5f5f4; text-align: center; }
+  #ocr-page-view canvas { max-width: 100%; height: auto; box-shadow: 0 2px 8px rgba(0,0,0,0.1); background: #fff; }
+  #ocr-text-view { flex: 1 1 40%; overflow: auto; padding: 16px; background: #fff; border-left: 1px solid #e7e5e4; min-width: 320px; }
+  #ocr-text-view h3 { font-size: 12px; color: #78716c; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  #ocr-text-content { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; white-space: pre-wrap; word-break: break-word; line-height: 1.5; background: #fafaf9; padding: 10px; border-radius: 4px; }
+  #ocr-word-list { margin-top: 12px; font-size: 11px; color: #57534e; }
+  #ocr-word-list .word { display: inline-block; padding: 2px 6px; margin: 2px; background: #f5f5f4; border-radius: 3px; }
+  #ocr-word-list .word.low-conf { background: #fee2e2; color: #991b1b; }
+  #ocr-word-list .word.mid-conf { background: #fef3c7; color: #92400e; }
+  #ocr-word-list .word.hi-conf { background: #dcfce7; color: #166534; }
+
+  #ocr-page-nav { display: flex; gap: 6px; align-items: center; margin: 10px 0; justify-content: center; }
+  #ocr-page-nav span { font-size: 12px; color: #57534e; }
+
+  /* Search tab */
+  #tab-search { flex-direction: column; }
+  #search-controls { padding: 14px 16px; background: #fff; border-bottom: 1px solid #e7e5e4; }
+  #search-input { width: 100%; padding: 10px 12px; font-size: 14px; border: 2px solid #d6d3d1; border-radius: 4px; }
+  #search-input:focus { outline: none; border-color: #0f766e; }
+  #search-meta { font-size: 12px; color: #78716c; margin-top: 6px; }
+  #search-results { flex: 1; overflow-y: auto; padding: 12px 16px; }
+  .search-result { background: #fff; border: 1px solid #e7e5e4; border-radius: 4px; padding: 12px; margin-bottom: 8px; cursor: pointer; }
+  .search-result:hover { border-color: #0f766e; background: #f0fdfa; }
+  .search-result .r-header { display: flex; gap: 10px; align-items: baseline; margin-bottom: 6px; }
+  .search-result .r-product { font-weight: 600; font-size: 13px; }
+  .search-result .r-page { font-size: 11px; color: #78716c; }
+  .search-result .r-snippet { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; line-height: 1.5; color: #292524; white-space: pre-wrap; }
+  .search-result mark { background: #fef08a; padding: 1px 2px; border-radius: 2px; }
+
+  /* Toast */
+  #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1e293b; color: #f8fafc; padding: 10px 18px; border-radius: 4px; font-size: 13px; opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+  #toast.show { opacity: 1; }
+  #toast.error { background: #991b1b; }
+  #toast.success { background: #166534; }
+
+  /* Empty states */
+  .empty { text-align: center; padding: 40px 20px; color: #78716c; }
+  .empty h3 { font-size: 14px; margin-bottom: 8px; color: #44403c; }
+  .empty p { font-size: 12px; }
+
+  /* Utility */
+  .hidden { display: none !important; }
+  .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid #d6d3d1; border-top-color: #0f766e; border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>LineAssemblyHub</h1>
+  <span class="tag">v0.1</span>
+  <div class="status" id="storage-status">–</div>
+  <button class="btn small" id="connect-folder-btn" style="background:#0f766e;color:#fff;border-color:#0f766e;">Connect month folder…</button>
+</header>
+
+<nav class="tabs">
+  <button class="tab-btn active" data-tab="route">Route &amp; Merge</button>
+  <button class="tab-btn" data-tab="ocr">OCR</button>
+  <button class="tab-btn" data-tab="search">Search</button>
+</nav>
+
+<main>
+
+  <!-- ROUTE & MERGE -->
+  <section class="tab-content active" id="tab-route">
+    <div id="route-scan-panel">
+      <div class="panel-header">
+        <h2>Today's scan</h2>
+        <div class="actions">
+          <button class="btn small" id="clear-scan">Clear</button>
+          <span id="scan-info" style="font-size: 11px; color: #78716c;"></span>
+        </div>
+      </div>
+      <div id="route-drop">
+        <div id="route-dropzone">
+          <p><strong>Drop today's combined scan PDF here</strong></p>
+          <p class="hint">or click to browse</p>
+          <p class="hint" style="margin-top: 14px;">Each page becomes a thumbnail. Assign it to an existing product — or pick <em>“+ New product from this page…”</em> to create one on the fly (day 1 flow).</p>
+        </div>
+        <input type="file" id="scan-input" accept="application/pdf" class="hidden">
+        <div id="thumbs"></div>
+      </div>
+    </div>
+
+    <div id="route-products-panel">
+      <div class="panel-header">
+        <h2>Products (month bundle)</h2>
+        <div class="actions">
+          <button class="btn small" id="import-existing">Import existing PDFs</button>
+          <button class="btn small" id="show-add-product">+ Add</button>
+          <button class="btn small primary" id="merge-export" disabled>Merge &amp; Export</button>
+        </div>
+        <input type="file" id="import-existing-input" accept="application/pdf" multiple class="hidden">
+      </div>
+      <div id="route-products">
+        <div id="add-product-form">
+          <input type="text" id="new-product-name" placeholder="Product name (e.g. M&amp;S Butter Basted 1.8)">
+          <p style="font-size: 11px; color: #57534e; margin: 4px 0;">Optionally load existing month PDF (new pages will append to it):</p>
+          <input type="file" id="new-product-file" accept="application/pdf">
+          <div class="row">
+            <button class="btn primary small" id="save-product">Save product</button>
+            <button class="btn small" id="cancel-product">Cancel</button>
+          </div>
+        </div>
+        <div id="products-list"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- OCR -->
+  <section class="tab-content" id="tab-ocr">
+    <div id="ocr-controls">
+      <label>PDF:</label>
+      <select id="ocr-pdf-select" style="min-width: 240px;"></select>
+      <label>Render DPI:</label>
+      <select id="ocr-dpi">
+        <option value="200">200</option>
+        <option value="300" selected>300 (recommended)</option>
+        <option value="400">400 (slow, higher quality)</option>
+      </select>
+      <label>Engine:</label>
+      <select id="ocr-oem">
+        <option value="1" selected>LSTM only (best quality)</option>
+        <option value="3">LSTM + legacy</option>
+        <option value="0">Legacy only (fast, prints only)</option>
+      </select>
+      <label>PSM:</label>
+      <select id="ocr-psm">
+        <option value="6" selected>6 – uniform block</option>
+        <option value="3">3 – auto</option>
+        <option value="11">11 – sparse text</option>
+        <option value="4">4 – single column</option>
+      </select>
+      <button class="btn primary" id="run-ocr">Run OCR on all pages</button>
+      <button class="btn" id="run-ocr-current" disabled>OCR current page only</button>
+      <button class="btn" id="download-searchable" disabled>Download searchable PDF</button>
+    </div>
+    <div id="ocr-progress">
+      <div id="ocr-progress-text">Starting…</div>
+      <div class="bar"><div class="bar-fill" id="ocr-progress-bar"></div></div>
+    </div>
+    <div id="ocr-view">
+      <div id="ocr-page-view">
+        <div class="empty" id="ocr-empty">
+          <h3>No PDF selected</h3>
+          <p>Pick a product PDF above, or add one via the Route &amp; Merge tab first.</p>
+        </div>
+        <canvas id="ocr-canvas" class="hidden"></canvas>
+        <div id="ocr-page-nav" class="hidden">
+          <button class="btn small" id="prev-page">← Prev</button>
+          <span id="page-indicator">–</span>
+          <button class="btn small" id="next-page">Next →</button>
+        </div>
+      </div>
+      <div id="ocr-text-view">
+        <h3>Extracted text</h3>
+        <div id="ocr-text-content">Run OCR to see extracted text here.</div>
+        <h3 style="margin-top: 16px;">Words (by confidence)</h3>
+        <div id="ocr-word-list"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SEARCH -->
+  <section class="tab-content" id="tab-search">
+    <div id="search-controls">
+      <input type="text" id="search-input" placeholder="Search across all OCR'd PDFs — try SHAH, GB2037, batch codes, dates…">
+      <div id="search-meta">Nothing indexed yet.</div>
+    </div>
+    <div id="search-results">
+      <div class="empty">
+        <h3>No results</h3>
+        <p>OCR a product PDF first, then results appear here.</p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<div id="toast"></div>
+
+<!-- Libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+<script>
+'use strict';
+
+// ============================================================
+// CONFIG
+// ============================================================
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+const DB_NAME = 'LineAssemblyHub';
+const DB_VERSION = 1;
+const THUMB_DPI = 60;
+
+// ============================================================
+// STATE
+// ============================================================
+const state = {
+  products: [],           // {id, name, pdfBytes (Uint8Array), pageCount, ocrByPage: {pageIdx: {text, words}}, lastUpdated}
+  scan: null,             // {pdfDoc (pdf.js), pdfBytes, pages: [{index, thumb, assignedProductId}]}
+  currentOcrPdfId: null,
+  currentOcrPage: 0,
+  currentOcrPdfDoc: null,
+};
+
+// ============================================================
+// INDEXEDDB
+// ============================================================
+let db;
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = (e) => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains('products')) {
+        d.createObjectStore('products', { keyPath: 'id' });
+      }
+      if (!d.objectStoreNames.contains('settings')) {
+        d.createObjectStore('settings', { keyPath: 'key' });
+      }
+    };
+    req.onsuccess = () => { db = req.result; resolve(db); };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function dbGet(store, key) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).get(key);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function dbGetAll(store) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function dbPut(store, value) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readwrite');
+    const req = tx.objectStore(store).put(value);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function dbDelete(store, key) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readwrite');
+    const req = tx.objectStore(store).delete(key);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// ============================================================
+// UTILITIES
+// ============================================================
+function toast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show ' + type;
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { el.className = ''; }, 3000);
+}
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+
+async function readFileAsBytes(file) {
+  return new Uint8Array(await file.arrayBuffer());
+}
+
+function formatBytes(n) {
+  if (n < 1024) return n + ' B';
+  if (n < 1024*1024) return (n/1024).toFixed(1) + ' KB';
+  return (n/1024/1024).toFixed(1) + ' MB';
+}
+
+async function updateStorageStatus() {
+  try {
+    if (navigator.storage && navigator.storage.estimate) {
+      const est = await navigator.storage.estimate();
+      const used = formatBytes(est.usage || 0);
+      const quota = formatBytes(est.quota || 0);
+      document.getElementById('storage-status').textContent = `Storage: ${used} / ${quota}`;
+    }
+  } catch(e) {}
+}
+
+// ============================================================
+// TABS
+// ============================================================
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    if (btn.dataset.tab === 'ocr') refreshOcrPdfSelect();
+    if (btn.dataset.tab === 'search') refreshSearchMeta();
+  });
+});
+
+// ============================================================
+// ROUTE & MERGE
+// ============================================================
+const dropzone = document.getElementById('route-dropzone');
+const scanInput = document.getElementById('scan-input');
+
+dropzone.addEventListener('click', () => scanInput.click());
+dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+dropzone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dropzone.classList.remove('dragover');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type === 'application/pdf') loadScan(f);
+});
+scanInput.addEventListener('change', (e) => {
+  if (e.target.files[0]) loadScan(e.target.files[0]);
+});
+
+document.getElementById('clear-scan').addEventListener('click', () => {
+  state.scan = null;
+  document.getElementById('thumbs').innerHTML = '';
+  document.getElementById('scan-info').textContent = '';
+  dropzone.style.display = 'block';
+  updateMergeButton();
+});
+
+async function loadScan(file) {
+  toast('Loading scan…');
+  try {
+    const bytes = await readFileAsBytes(file);
+    const pdfDoc = await pdfjsLib.getDocument({ data: bytes }).promise;
+    state.scan = {
+      filename: file.name,
+      pdfBytes: bytes,
+      pdfDoc,
+      pages: []
+    };
+    document.getElementById('scan-info').textContent = `${file.name} · ${pdfDoc.numPages} pages`;
+    dropzone.style.display = 'none';
+    await renderThumbs();
+    toast('Loaded ' + pdfDoc.numPages + ' pages', 'success');
+  } catch(err) {
+    console.error(err);
+    toast('Failed to load PDF: ' + err.message, 'error');
+  }
+}
+
+async function renderThumbs() {
+  const thumbsEl = document.getElementById('thumbs');
+  thumbsEl.innerHTML = '';
+  const pdfDoc = state.scan.pdfDoc;
+  const productOptions = state.products.map(p =>
+    `<option value="${p.id}">${escapeHtml(p.name)}</option>`
+  ).join('');
+
+  for (let i = 1; i <= pdfDoc.numPages; i++) {
+    const page = await pdfDoc.getPage(i);
+    const viewport = page.getViewport({ scale: THUMB_DPI / 72 });
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    const ctx = canvas.getContext('2d');
+    await page.render({ canvasContext: ctx, viewport }).promise;
+
+    const thumbDiv = document.createElement('div');
+    thumbDiv.className = 'thumb';
+    thumbDiv.dataset.pageIdx = i - 1;
+    thumbDiv.innerHTML = `
+      <div class="thumb-canvas-wrap"></div>
+      <div class="page-num">Page ${i}</div>
+      <select data-page-idx="${i-1}">
+        <option value="">— unassigned —</option>
+        <option value="__new__">+ New product from this page…</option>
+        ${productOptions}
+      </select>
+    `;
+    thumbDiv.querySelector('.thumb-canvas-wrap').appendChild(canvas);
+    thumbsEl.appendChild(thumbDiv);
+
+    state.scan.pages.push({ index: i - 1, assignedProductId: null });
+  }
+
+  thumbsEl.querySelectorAll('select').forEach(sel => {
+    sel.addEventListener('change', async (e) => {
+      const idx = parseInt(e.target.dataset.pageIdx);
+      let val = e.target.value || null;
+
+      // Handle inline product creation
+      if (val === '__new__') {
+        const name = prompt('New product name (e.g. "M&S Butter Basted 1.8"):');
+        if (!name || !name.trim()) {
+          e.target.value = state.scan.pages[idx].assignedProductId || '';
+          return;
+        }
+        const emptyDoc = await PDFLib.PDFDocument.create();
+        const emptyBytes = await emptyDoc.save();
+        const product = {
+          id: uid(),
+          name: name.trim(),
+          pdfBytes: emptyBytes,
+          pageCount: 0,
+          ocrByPage: {},
+          lastUpdated: new Date().toISOString()
+        };
+        state.products.push(product);
+        await dbPut('products', product);
+        val = product.id;
+        updateProductsList();
+        await renderThumbs(); // refresh all selects with new product option
+        // Re-set this thumb's selection
+        const newSel = document.querySelector(`select[data-page-idx="${idx}"]`);
+        if (newSel) newSel.value = val;
+        state.scan.pages[idx].assignedProductId = val;
+        const thumb = newSel.closest('.thumb');
+        thumb.classList.add('assigned');
+        updateProductsList();
+        updateMergeButton();
+        toast('Created "' + product.name + '"', 'success');
+        return;
+      }
+
+      state.scan.pages[idx].assignedProductId = val;
+      const thumb = e.target.closest('.thumb');
+      thumb.classList.toggle('assigned', !!val);
+      updateProductsList();
+      updateMergeButton();
+    });
+  });
+}
+
+function updateMergeButton() {
+  const anyAssigned = state.scan && state.scan.pages.some(p => p.assignedProductId);
+  document.getElementById('merge-export').disabled = !anyAssigned;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// Bulk import existing product PDFs
+document.getElementById('import-existing').addEventListener('click', () => {
+  document.getElementById('import-existing-input').click();
+});
+document.getElementById('import-existing-input').addEventListener('change', async (e) => {
+  const files = Array.from(e.target.files || []);
+  if (files.length === 0) return;
+  toast('Importing ' + files.length + ' PDFs…');
+  let added = 0, skipped = 0;
+  for (const file of files) {
+    try {
+      const name = file.name.replace(/\.pdf$/i, '').trim();
+      if (state.products.some(p => p.name === name)) { skipped++; continue; }
+      const bytes = await readFileAsBytes(file);
+      const doc = await pdfjsLib.getDocument({ data: bytes.slice() }).promise;
+      const product = {
+        id: uid(),
+        name,
+        pdfBytes: bytes,
+        pageCount: doc.numPages,
+        ocrByPage: {},
+        lastUpdated: new Date().toISOString(),
+        sourceFileName: file.name
+      };
+      state.products.push(product);
+      await dbPut('products', product);
+      added++;
+    } catch(err) {
+      console.error('Import failed for', file.name, err);
+    }
+  }
+  updateProductsList();
+  if (state.scan) await renderThumbs();
+  refreshOcrPdfSelect();
+  updateStorageStatus();
+  e.target.value = '';
+  toast(`Imported ${added}${skipped ? ' (' + skipped + ' skipped: name exists)' : ''}`, 'success');
+});
+
+// Product management
+document.getElementById('show-add-product').addEventListener('click', () => {
+  document.getElementById('add-product-form').classList.add('active');
+  document.getElementById('new-product-name').focus();
+});
+document.getElementById('cancel-product').addEventListener('click', () => {
+  document.getElementById('add-product-form').classList.remove('active');
+  document.getElementById('new-product-name').value = '';
+  document.getElementById('new-product-file').value = '';
+});
+document.getElementById('save-product').addEventListener('click', async () => {
+  const name = document.getElementById('new-product-name').value.trim();
+  if (!name) { toast('Product name required', 'error'); return; }
+  const file = document.getElementById('new-product-file').files[0];
+
+  let pdfBytes = null, pageCount = 0;
+  if (file) {
+    pdfBytes = await readFileAsBytes(file);
+    const doc = await pdfjsLib.getDocument({ data: pdfBytes.slice() }).promise;
+    pageCount = doc.numPages;
+  } else {
+    // create empty PDF
+    const emptyDoc = await PDFLib.PDFDocument.create();
+    pdfBytes = await emptyDoc.save();
+  }
+
+  const product = {
+    id: uid(),
+    name,
+    pdfBytes,
+    pageCount,
+    ocrByPage: {},
+    lastUpdated: new Date().toISOString()
+  };
+  state.products.push(product);
+  await dbPut('products', product);
+  document.getElementById('add-product-form').classList.remove('active');
+  document.getElementById('new-product-name').value = '';
+  document.getElementById('new-product-file').value = '';
+  updateProductsList();
+  if (state.scan) await renderThumbs(); // refresh selects
+  toast('Product added', 'success');
+});
+
+function updateProductsList() {
+  const el = document.getElementById('products-list');
+  if (state.products.length === 0) {
+    el.innerHTML = '<div class="empty"><h3>No products yet</h3><p>Add a product to start routing pages to it.</p></div>';
+    return;
+  }
+
+  el.innerHTML = state.products.map(p => {
+    const assignedCount = state.scan
+      ? state.scan.pages.filter(pg => pg.assignedProductId === p.id).length
+      : 0;
+    const ocrPageCount = Object.keys(p.ocrByPage || {}).length;
+    return `
+      <div class="product-row" data-id="${p.id}">
+        <div class="p-header">
+          <span class="p-name">${escapeHtml(p.name)}</span>
+          <span class="p-assigned-count ${assignedCount === 0 ? 'zero' : ''}">${assignedCount} new</span>
+        </div>
+        <div class="p-meta">${p.pageCount} pages in bundle · ${ocrPageCount} OCR'd · updated ${new Date(p.lastUpdated).toLocaleString()}</div>
+        <div class="p-actions">
+          <button class="btn small download-product" data-id="${p.id}">Download</button>
+          <button class="btn small rename-product" data-id="${p.id}">Rename</button>
+          <button class="btn small danger delete-product" data-id="${p.id}">Delete</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  el.querySelectorAll('.delete-product').forEach(b => {
+    b.addEventListener('click', async () => {
+      if (!confirm('Delete this product and its bundle PDF?')) return;
+      const id = b.dataset.id;
+      state.products = state.products.filter(p => p.id !== id);
+      await dbDelete('products', id);
+      updateProductsList();
+      if (state.scan) await renderThumbs();
+      toast('Deleted', 'success');
+    });
+  });
+  el.querySelectorAll('.rename-product').forEach(b => {
+    b.addEventListener('click', async () => {
+      const id = b.dataset.id;
+      const p = state.products.find(x => x.id === id);
+      const newName = prompt('New name:', p.name);
+      if (!newName || newName === p.name) return;
+      p.name = newName;
+      p.lastUpdated = new Date().toISOString();
+      await dbPut('products', p);
+      updateProductsList();
+      if (state.scan) await renderThumbs();
+    });
+  });
+  el.querySelectorAll('.download-product').forEach(b => {
+    b.addEventListener('click', async () => {
+      const id = b.dataset.id;
+      const p = state.products.find(x => x.id === id);
+      downloadBytes(p.pdfBytes, `${p.name}.pdf`);
+    });
+  });
+}
+
+function downloadBytes(bytes, filename) {
+  const blob = new Blob([bytes], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// Merge & Export
+document.getElementById('merge-export').addEventListener('click', async () => {
+  if (!state.scan) return;
+
+  // Group pages by product
+  const byProduct = {};
+  state.scan.pages.forEach(pg => {
+    if (pg.assignedProductId) {
+      if (!byProduct[pg.assignedProductId]) byProduct[pg.assignedProductId] = [];
+      byProduct[pg.assignedProductId].push(pg.index);
+    }
+  });
+
+  if (Object.keys(byProduct).length === 0) {
+    toast('No pages assigned', 'error');
+    return;
+  }
+
+  toast('Merging…');
+  const zip = folderHandle ? null : new JSZip();
+  let savedToFolder = 0;
+
+  for (const productId of Object.keys(byProduct)) {
+    const product = state.products.find(p => p.id === productId);
+    if (!product) continue;
+
+    // Load existing product PDF
+    const productDoc = await PDFLib.PDFDocument.load(product.pdfBytes);
+    // Load scan PDF for copying
+    const scanDoc = await PDFLib.PDFDocument.load(state.scan.pdfBytes);
+    const pageIndices = byProduct[productId];
+    const copiedPages = await productDoc.copyPages(scanDoc, pageIndices);
+    copiedPages.forEach(cp => productDoc.addPage(cp));
+
+    const newBytes = await productDoc.save();
+    product.pdfBytes = newBytes;
+    product.pageCount = productDoc.getPageCount();
+    product.lastUpdated = new Date().toISOString();
+    await dbPut('products', product);
+
+    if (folderHandle) {
+      const ok = await saveProductToFolder(product);
+      if (ok) savedToFolder++;
+    } else {
+      zip.file(`${product.name}.pdf`, newBytes);
+    }
+  }
+
+  if (folderHandle) {
+    toast(`Saved ${savedToFolder} PDFs directly to ${folderHandle.name}`, 'success');
+  } else {
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(zipBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `LineAssembly_${new Date().toISOString().slice(0,10)}.zip`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast('Merged and updated ' + Object.keys(byProduct).length + ' products', 'success');
+  }
+  updateProductsList();
+  updateStorageStatus();
+});
+
+// ============================================================
+// OCR
+// ============================================================
+let tesseractWorker = null;
+
+async function getTesseractWorker(oem) {
+  if (tesseractWorker && tesseractWorker._oem === oem) return tesseractWorker;
+  if (tesseractWorker) await tesseractWorker.terminate();
+  const worker = await Tesseract.createWorker('eng', parseInt(oem), {
+    logger: m => {
+      if (m.status === 'recognizing text') {
+        updateOcrProgress(m.progress, m.status);
+      }
+    }
+  });
+  worker._oem = oem;
+  tesseractWorker = worker;
+  return worker;
+}
+
+function updateOcrProgress(fraction, label) {
+  const p = document.getElementById('ocr-progress');
+  p.classList.add('active');
+  document.getElementById('ocr-progress-text').textContent = label + ' — ' + Math.round(fraction * 100) + '%';
+  document.getElementById('ocr-progress-bar').style.width = (fraction * 100) + '%';
+}
+
+function hideOcrProgress() {
+  document.getElementById('ocr-progress').classList.remove('active');
+}
+
+function refreshOcrPdfSelect() {
+  const sel = document.getElementById('ocr-pdf-select');
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">— pick a product PDF —</option>' +
+    state.products.map(p => {
+      const ocrCount = Object.keys(p.ocrByPage || {}).length;
+      return `<option value="${p.id}">${escapeHtml(p.name)} (${p.pageCount} pages, ${ocrCount} OCR'd)</option>`;
+    }).join('');
+  if (prev) sel.value = prev;
+}
+
+document.getElementById('ocr-pdf-select').addEventListener('change', async (e) => {
+  const id = e.target.value;
+  if (!id) {
+    document.getElementById('ocr-empty').classList.remove('hidden');
+    document.getElementById('ocr-canvas').classList.add('hidden');
+    document.getElementById('ocr-page-nav').classList.add('hidden');
+    document.getElementById('run-ocr-current').disabled = true;
+    document.getElementById('download-searchable').disabled = true;
+    state.currentOcrPdfId = null;
+    return;
+  }
+  const product = state.products.find(p => p.id === id);
+  state.currentOcrPdfId = id;
+  state.currentOcrPage = 0;
+  state.currentOcrPdfDoc = await pdfjsLib.getDocument({ data: product.pdfBytes.slice() }).promise;
+  document.getElementById('ocr-empty').classList.add('hidden');
+  document.getElementById('ocr-canvas').classList.remove('hidden');
+  document.getElementById('ocr-page-nav').classList.remove('hidden');
+  document.getElementById('run-ocr-current').disabled = false;
+  document.getElementById('download-searchable').disabled = Object.keys(product.ocrByPage || {}).length === 0;
+  await renderOcrPage();
+});
+
+async function renderOcrPage() {
+  if (!state.currentOcrPdfDoc) return;
+  const page = await state.currentOcrPdfDoc.getPage(state.currentOcrPage + 1);
+  const dpi = 100;
+  const viewport = page.getViewport({ scale: dpi / 72 });
+  const canvas = document.getElementById('ocr-canvas');
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  const ctx = canvas.getContext('2d');
+  await page.render({ canvasContext: ctx, viewport }).promise;
+
+  document.getElementById('page-indicator').textContent = `Page ${state.currentOcrPage + 1} / ${state.currentOcrPdfDoc.numPages}`;
+
+  const product = state.products.find(p => p.id === state.currentOcrPdfId);
+  const ocr = product.ocrByPage[state.currentOcrPage];
+  if (ocr) {
+    document.getElementById('ocr-text-content').textContent = ocr.text || '(no text)';
+    renderWordList(ocr.words || []);
+  } else {
+    document.getElementById('ocr-text-content').textContent = 'Not OCR\'d yet. Click "Run OCR" or "OCR current page only".';
+    document.getElementById('ocr-word-list').innerHTML = '';
+  }
+}
+
+function renderWordList(words) {
+  const el = document.getElementById('ocr-word-list');
+  if (!words || words.length === 0) { el.innerHTML = '<em style="color:#a8a29e">No words detected.</em>'; return; }
+  el.innerHTML = words.map(w => {
+    const conf = w.confidence || 0;
+    const cls = conf > 80 ? 'hi-conf' : conf > 50 ? 'mid-conf' : 'low-conf';
+    return `<span class="word ${cls}" title="${conf.toFixed(0)}%">${escapeHtml(w.text)}</span>`;
+  }).join(' ');
+}
+
+document.getElementById('prev-page').addEventListener('click', async () => {
+  if (state.currentOcrPage > 0) { state.currentOcrPage--; await renderOcrPage(); }
+});
+document.getElementById('next-page').addEventListener('click', async () => {
+  if (state.currentOcrPage < state.currentOcrPdfDoc.numPages - 1) {
+    state.currentOcrPage++;
+    await renderOcrPage();
+  }
+});
+
+async function renderPageToImageBlob(pdfDoc, pageNum, dpi) {
+  const page = await pdfDoc.getPage(pageNum);
+  const viewport = page.getViewport({ scale: dpi / 72 });
+  const canvas = document.createElement('canvas');
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  const ctx = canvas.getContext('2d');
+  // fill white bg first (some scans render with transparent alpha)
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  await page.render({ canvasContext: ctx, viewport }).promise;
+  return { canvas, viewport };
+}
+
+async function ocrPage(pdfDoc, pageNum, dpi, oem, psm) {
+  const { canvas, viewport } = await renderPageToImageBlob(pdfDoc, pageNum, dpi);
+  const worker = await getTesseractWorker(oem);
+  await worker.setParameters({
+    tessedit_pageseg_mode: psm.toString()
+  });
+  const result = await worker.recognize(canvas, {}, { blocks: true });
+  return {
+    text: result.data.text,
+    words: (result.data.words || []).map(w => ({
+      text: w.text,
+      confidence: w.confidence,
+      // bbox in canvas pixel space (dpi resolution)
+      bbox: w.bbox,
+      // canvas dimensions to allow later remapping
+      canvasWidth: canvas.width,
+      canvasHeight: canvas.height,
+      // pdf page dimensions in points (viewport at scale 1)
+      pageWidth: viewport.width / (dpi / 72),
+      pageHeight: viewport.height / (dpi / 72),
+    })),
+    dpi
+  };
+}
+
+document.getElementById('run-ocr').addEventListener('click', async () => {
+  if (!state.currentOcrPdfId) return;
+  const product = state.products.find(p => p.id === state.currentOcrPdfId);
+  const dpi = parseInt(document.getElementById('ocr-dpi').value);
+  const oem = document.getElementById('ocr-oem').value;
+  const psm = parseInt(document.getElementById('ocr-psm').value);
+  const total = product.pageCount;
+
+  try {
+    for (let i = 0; i < total; i++) {
+      updateOcrProgress(i / total, `Page ${i+1}/${total}`);
+      const res = await ocrPage(state.currentOcrPdfDoc, i + 1, dpi, oem, psm);
+      product.ocrByPage[i] = res;
+    }
+    product.lastUpdated = new Date().toISOString();
+    await dbPut('products', product);
+    hideOcrProgress();
+    toast('OCR complete for ' + total + ' pages', 'success');
+    document.getElementById('download-searchable').disabled = false;
+    await renderOcrPage();
+    refreshOcrPdfSelect();
+  } catch(err) {
+    console.error(err);
+    hideOcrProgress();
+    toast('OCR failed: ' + err.message, 'error');
+  }
+});
+
+document.getElementById('run-ocr-current').addEventListener('click', async () => {
+  if (!state.currentOcrPdfId) return;
+  const product = state.products.find(p => p.id === state.currentOcrPdfId);
+  const dpi = parseInt(document.getElementById('ocr-dpi').value);
+  const oem = document.getElementById('ocr-oem').value;
+  const psm = parseInt(document.getElementById('ocr-psm').value);
+  try {
+    updateOcrProgress(0, 'OCR current page');
+    const res = await ocrPage(state.currentOcrPdfDoc, state.currentOcrPage + 1, dpi, oem, psm);
+    product.ocrByPage[state.currentOcrPage] = res;
+    product.lastUpdated = new Date().toISOString();
+    await dbPut('products', product);
+    hideOcrProgress();
+    toast('Page OCR complete', 'success');
+    document.getElementById('download-searchable').disabled = false;
+    await renderOcrPage();
+    refreshOcrPdfSelect();
+  } catch(err) {
+    console.error(err);
+    hideOcrProgress();
+    toast('OCR failed: ' + err.message, 'error');
+  }
+});
+
+// Download searchable PDF: overlay invisible text using pdf-lib
+document.getElementById('download-searchable').addEventListener('click', async () => {
+  if (!state.currentOcrPdfId) return;
+  const product = state.products.find(p => p.id === state.currentOcrPdfId);
+  toast('Building searchable PDF…');
+
+  try {
+    const pdfDoc = await PDFLib.PDFDocument.load(product.pdfBytes.slice());
+    const helv = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+    const pages = pdfDoc.getPages();
+
+    for (let i = 0; i < pages.length; i++) {
+      const ocr = product.ocrByPage[i];
+      if (!ocr || !ocr.words || ocr.words.length === 0) continue;
+
+      const page = pages[i];
+      const { width: pageW, height: pageH } = page.getSize();
+
+      for (const w of ocr.words) {
+        if (!w.text || !w.text.trim()) continue;
+        // bbox is {x0, y0, x1, y1} in canvas pixel space
+        const bbox = w.bbox;
+        if (!bbox) continue;
+        // Map canvas coords -> PDF points
+        const scaleX = pageW / w.canvasWidth;
+        const scaleY = pageH / w.canvasHeight;
+        const x = bbox.x0 * scaleX;
+        // PDF origin is bottom-left; canvas origin is top-left
+        const yTop = bbox.y0 * scaleY;
+        const wordH = (bbox.y1 - bbox.y0) * scaleY;
+        const y = pageH - yTop - wordH;
+        const fontSize = Math.max(4, wordH * 0.9);
+
+        // Draw invisible text: render mode 3 = invisible. pdf-lib supports opacity 0.
+        page.drawText(w.text, {
+          x,
+          y,
+          size: fontSize,
+          font: helv,
+          color: PDFLib.rgb(0, 0, 0),
+          opacity: 0,
+        });
+      }
+    }
+
+    const newBytes = await pdfDoc.save();
+    downloadBytes(newBytes, `${product.name}_searchable.pdf`);
+    toast('Downloaded searchable PDF', 'success');
+  } catch(err) {
+    console.error(err);
+    toast('Failed to build searchable PDF: ' + err.message, 'error');
+  }
+});
+
+// ============================================================
+// FILE SYSTEM ACCESS API — Month folder connection
+// ============================================================
+// Progressive enhancement: if the browser supports it (Chrome/Edge desktop),
+// user can pick their month folder once; PWA reads existing PDFs directly and
+// writes updates back to the same folder — no download/replace step.
+
+let folderHandle = null;
+const supportsFSA = 'showDirectoryPicker' in window;
+
+if (!supportsFSA) {
+  document.getElementById('connect-folder-btn').title = 'Not supported in this browser — use Chrome or Edge on desktop';
+}
+
+document.getElementById('connect-folder-btn').addEventListener('click', async () => {
+  if (!supportsFSA) {
+    toast('File System Access needs Chrome or Edge on desktop. Use Import existing PDFs instead.', 'error');
+    return;
+  }
+  try {
+    folderHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+    // persist handle in IndexedDB (structured-clonable in supporting browsers)
+    try { await dbPut('settings', { key: 'folderHandle', value: folderHandle }); } catch(_) {}
+    await loadProductsFromFolder();
+    updateFolderStatus();
+    toast('Folder connected — updates will save directly', 'success');
+  } catch(err) {
+    if (err.name !== 'AbortError') {
+      console.error(err);
+      toast('Could not connect folder: ' + err.message, 'error');
+    }
+  }
+});
+
+function updateFolderStatus() {
+  const btn = document.getElementById('connect-folder-btn');
+  if (folderHandle) {
+    btn.textContent = '📁 ' + folderHandle.name + ' (change…)';
+    btn.style.background = '#166534';
+    btn.style.borderColor = '#166534';
+  } else {
+    btn.textContent = 'Connect month folder…';
+    btn.style.background = '#0f766e';
+    btn.style.borderColor = '#0f766e';
+  }
+}
+
+async function loadProductsFromFolder() {
+  if (!folderHandle) return;
+  toast('Reading folder…');
+  let loaded = 0, updated = 0;
+  for await (const [name, handle] of folderHandle.entries()) {
+    if (handle.kind !== 'file' || !name.toLowerCase().endsWith('.pdf')) continue;
+    try {
+      const file = await handle.getFile();
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const doc = await pdfjsLib.getDocument({ data: bytes.slice() }).promise;
+      const productName = name.replace(/\.pdf$/i, '').trim();
+      const existing = state.products.find(p => p.name === productName);
+      if (existing) {
+        existing.pdfBytes = bytes;
+        existing.pageCount = doc.numPages;
+        existing.lastUpdated = new Date().toISOString();
+        existing.sourceFileName = name;
+        await dbPut('products', existing);
+        updated++;
+      } else {
+        const product = {
+          id: uid(),
+          name: productName,
+          pdfBytes: bytes,
+          pageCount: doc.numPages,
+          ocrByPage: {},
+          lastUpdated: new Date().toISOString(),
+          sourceFileName: name
+        };
+        state.products.push(product);
+        await dbPut('products', product);
+        loaded++;
+      }
+    } catch(err) {
+      console.error('Failed to load', name, err);
+    }
+  }
+  updateProductsList();
+  if (state.scan) await renderThumbs();
+  refreshOcrPdfSelect();
+  updateStorageStatus();
+  toast(`Folder: ${loaded} new · ${updated} updated`, 'success');
+}
+
+async function saveProductToFolder(product) {
+  if (!folderHandle) return false;
+  try {
+    const filename = product.sourceFileName || (product.name + '.pdf');
+    const fileHandle = await folderHandle.getFileHandle(filename, { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(product.pdfBytes);
+    await writable.close();
+    return true;
+  } catch(err) {
+    console.error('Save to folder failed', err);
+    return false;
+  }
+}
+
+// Try to restore folder handle on startup
+async function restoreFolderHandle() {
+  if (!supportsFSA) return;
+  try {
+    const stored = await dbGet('settings', 'folderHandle');
+    if (stored && stored.value) {
+      const perm = await stored.value.queryPermission({ mode: 'readwrite' });
+      if (perm === 'granted') {
+        folderHandle = stored.value;
+        updateFolderStatus();
+      } else {
+        // needs re-grant — show hint
+        document.getElementById('connect-folder-btn').textContent = '📁 Reconnect ' + stored.value.name;
+      }
+    }
+  } catch(err) { /* handle not persisted or restore failed */ }
+}
+
+// ============================================================
+// SEARCH
+// ============================================================
+document.getElementById('search-input').addEventListener('input', doSearch);
+
+function doSearch() {
+  const q = document.getElementById('search-input').value.trim();
+  const resultsEl = document.getElementById('search-results');
+  if (!q) {
+    resultsEl.innerHTML = '<div class="empty"><h3>No results</h3><p>Type a query above.</p></div>';
+    return;
+  }
+
+  const qLower = q.toLowerCase();
+  const results = [];
+
+  for (const p of state.products) {
+    for (const [pageIdx, ocr] of Object.entries(p.ocrByPage || {})) {
+      if (!ocr.text) continue;
+      const textLower = ocr.text.toLowerCase();
+      const idx = textLower.indexOf(qLower);
+      if (idx >= 0) {
+        const snippetStart = Math.max(0, idx - 60);
+        const snippetEnd = Math.min(ocr.text.length, idx + q.length + 60);
+        const before = ocr.text.slice(snippetStart, idx);
+        const match = ocr.text.slice(idx, idx + q.length);
+        const after = ocr.text.slice(idx + q.length, snippetEnd);
+        results.push({
+          productName: p.name,
+          productId: p.id,
+          pageIdx: parseInt(pageIdx),
+          snippet: escapeHtml(before) + '<mark>' + escapeHtml(match) + '</mark>' + escapeHtml(after)
+        });
+      }
+    }
+  }
+
+  if (results.length === 0) {
+    resultsEl.innerHTML = `<div class="empty"><h3>No matches for "${escapeHtml(q)}"</h3><p>Try a shorter or different query.</p></div>`;
+    return;
+  }
+
+  resultsEl.innerHTML = results.map(r => `
+    <div class="search-result" data-product-id="${r.productId}" data-page="${r.pageIdx}">
+      <div class="r-header">
+        <span class="r-product">${escapeHtml(r.productName)}</span>
+        <span class="r-page">page ${r.pageIdx + 1}</span>
+      </div>
+      <div class="r-snippet">${r.snippet}</div>
+    </div>
+  `).join('');
+
+  resultsEl.querySelectorAll('.search-result').forEach(el => {
+    el.addEventListener('click', () => {
+      const productId = el.dataset.productId;
+      const pageIdx = parseInt(el.dataset.page);
+      document.querySelector('.tab-btn[data-tab="ocr"]').click();
+      setTimeout(async () => {
+        document.getElementById('ocr-pdf-select').value = productId;
+        document.getElementById('ocr-pdf-select').dispatchEvent(new Event('change'));
+        setTimeout(() => {
+          state.currentOcrPage = pageIdx;
+          renderOcrPage();
+        }, 500);
+      }, 100);
+    });
+  });
+}
+
+function refreshSearchMeta() {
+  const totalPages = state.products.reduce((s, p) => s + Object.keys(p.ocrByPage || {}).length, 0);
+  const totalProducts = state.products.filter(p => Object.keys(p.ocrByPage || {}).length > 0).length;
+  document.getElementById('search-meta').textContent =
+    totalPages === 0
+      ? 'Nothing indexed yet. Run OCR on a product PDF first.'
+      : `${totalPages} pages OCR'd across ${totalProducts} products.`;
+}
+
+// ============================================================
+// INIT
+// ============================================================
+async function init() {
+  await openDB();
+  const stored = await dbGetAll('products');
+  state.products = stored || [];
+  updateProductsList();
+  updateStorageStatus();
+  refreshOcrPdfSelect();
+  refreshSearchMeta();
+  await restoreFolderHandle();
+  toast('Ready — ' + state.products.length + ' products loaded');
+}
+
+init().catch(err => {
+  console.error(err);
+  toast('Init failed: ' + err.message, 'error');
+});
+</script>
+
+</body>
+</html>
