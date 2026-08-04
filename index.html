@@ -23,7 +23,6 @@
   .tab-content { flex: 1; display: none; overflow: hidden; }
   .tab-content.active { display: flex; }
 
-  /* Route & Merge */
   #tab-route { flex-direction: row; }
   #route-scan-panel { flex: 1 1 65%; display: flex; flex-direction: column; border-right: 1px solid #d6d3d1; background: #fafaf9; }
   #route-products-panel { flex: 1 1 35%; display: flex; flex-direction: column; background: #fff; min-width: 340px; max-width: 480px; }
@@ -46,7 +45,6 @@
   #route-dropzone p { margin: 6px 0; }
   #route-dropzone .hint { font-size: 12px; opacity: 0.7; }
 
-  /* Readable thumbnails */
   #thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 14px; margin-top: 12px; }
   .thumb { background: #fff; border: 2px solid #d6d3d1; border-radius: 4px; padding: 8px; position: relative; }
   .thumb.assigned { border-color: #0f766e; box-shadow: 0 0 0 1px #0f766e; }
@@ -54,7 +52,6 @@
   .thumb .page-num { font-size: 11px; color: #78716c; margin-top: 6px; text-align: center; font-weight: 500; }
   .thumb select { width: 100%; margin-top: 6px; font-size: 13px; padding: 6px; border: 1px solid #d6d3d1; border-radius: 3px; }
 
-  /* Zoom overlay */
   #zoom-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 2000; display: none; align-items: center; justify-content: center; padding: 20px; cursor: zoom-out; }
   #zoom-overlay.show { display: flex; }
   #zoom-overlay canvas { max-width: 100%; max-height: 100%; background: #fff; box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
@@ -74,7 +71,6 @@
   #add-product-form .row { display: flex; gap: 6px; margin-top: 6px; }
   #add-product-form .hint { font-size: 11px; color: #57534e; margin-top: 4px; }
 
-  /* OCR tab */
   #tab-ocr { flex-direction: column; overflow-y: auto; }
   .config-box { padding: 12px 16px; background: #fff; border-bottom: 1px solid #e7e5e4; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
   .config-box label { font-size: 12px; color: #57534e; font-weight: 500; }
@@ -87,7 +83,7 @@
   #ocr-progress .bar { background: #fde68a; height: 6px; border-radius: 3px; margin-top: 6px; overflow: hidden; }
   #ocr-progress .bar-fill { background: #d97706; height: 100%; width: 0%; transition: width 0.2s; }
 
-  #cost-estimate-badge { font-size: 11px; font-weight: 600; color: #0f766e; background: #ccfbf1; padding: 4px 8px; border-radius: 4px; border: 1px solid #99f6e4; }
+  #cost-estimate-badge { font-size: 11px; font-weight: 600; color: #0f766e; background: #ccfbf1; padding: 4px 8px; border-radius: 4px; border: 1px solid #99f6e4; display: none; }
 
   #ocr-summary { padding: 12px 16px; font-size: 12px; color: #57534e; background: #fafaf9; border-bottom: 1px solid #e7e5e4; }
   #ocr-product-list { padding: 12px 16px; }
@@ -100,7 +96,6 @@
   .ocr-product .stat.pending.zero { background: #e7e5e4; color: #a8a29e; }
   .ocr-product.processing { border-color: #d97706; background: #fef3c7; }
 
-  /* Search tab */
   #tab-search { flex-direction: column; }
   #search-controls { padding: 14px 16px; background: #fff; border-bottom: 1px solid #e7e5e4; }
   #search-input { width: 100%; padding: 10px 12px; font-size: 14px; border: 2px solid #d6d3d1; border-radius: 4px; }
@@ -114,7 +109,6 @@
   .search-result .r-snippet { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; line-height: 1.5; color: #292524; white-space: pre-wrap; }
   .search-result mark { background: #fef08a; padding: 1px 2px; border-radius: 2px; }
 
-  /* Toast */
   #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1e293b; color: #f8fafc; padding: 10px 18px; border-radius: 4px; font-size: 13px; opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
   #toast.show { opacity: 1; }
   #toast.error { background: #991b1b; }
@@ -123,7 +117,6 @@
   .empty { text-align: center; padding: 40px 20px; color: #78716c; }
   .empty h3 { font-size: 14px; margin-bottom: 8px; color: #44403c; }
   .empty p { font-size: 12px; }
-
   .hidden { display: none !important; }
 </style>
 </head>
@@ -131,7 +124,7 @@
 
 <header>
   <h1>LineAssemblyHub</h1>
-  <span class="tag">v0.4 (Google Vision)</span>
+  <span class="tag">v0.5 (Vision + Gemini Hybrid)</span>
   <div class="status" id="storage-status" title="Browser local storage allocation">–</div>
   <button class="btn small" id="connect-folder-btn" style="background:#0f766e;color:#fff;border-color:#0f766e;">Connect month folder…</button>
 </header>
@@ -143,8 +136,6 @@
 </nav>
 
 <main>
-
-  <!-- ROUTE & MERGE -->
   <section class="tab-content active" id="tab-route">
     <div id="route-scan-panel">
       <div class="panel-header">
@@ -178,7 +169,6 @@
       <div id="route-products">
         <div id="add-product-form">
           <input type="text" id="new-product-name" placeholder="Product name (e.g. Ocado Salt and Pepper Crown)">
-          <p class="hint">Common FP2 products: Butter Basted (M&amp;S), Salt &amp; Pepper (Ocado), Rotisserie (Aldi), Sweet &amp; Sticky (Aldi)</p>
           <input type="file" id="new-product-file" accept="application/pdf">
           <div class="row">
             <button class="btn primary small" id="save-product">Save product</button>
@@ -190,32 +180,34 @@
     </div>
   </section>
 
-  <!-- CONVERT TO OCR -->
   <section class="tab-content" id="tab-ocr">
     <div class="config-box">
-      <label>Google API Key:</label>
-      <input type="text" id="api-key-input" style="width: 340px;" placeholder="AIzaSy...">
-      <button class="btn small" id="save-api-key-btn">Save Key</button>
+      <label>Vision Key (Coords):</label>
+      <input type="text" id="api-key-input" style="width: 220px;" placeholder="AIzaSy...">
+      <label>Gemini Key (Text):</label>
+      <input type="text" id="gemini-key-input" style="width: 220px;" placeholder="AIzaSy...">
+      <button class="btn small" id="save-api-key-btn">Save Keys</button>
       <span id="key-status" style="font-size: 11px; color: #78716c;"></span>
     </div>
 
     <div class="config-box">
       <div class="scope-radio">
-        <label><input type="radio" name="ocr-scope" value="new" checked> Only new pages (not yet OCR'd)</label>
-        <label><input type="radio" name="ocr-scope" value="all"> All pages (re-OCR everything)</label>
+        <label><input type="radio" name="ocr-scope" value="new" checked> Only new pages</label>
+        <label><input type="radio" name="ocr-scope" value="all"> All pages</label>
       </div>
       <div>
         <label>Engine:</label>
         <select id="ocr-engine-select">
-          <option value="gvision" selected>Google Cloud Vision API (Handwriting ML)</option>
-          <option value="tesseract">Tesseract.js (Local Fallback)</option>
+          <option value="hybrid" selected>Hybrid (Vision Coords + Gemini Correction)</option>
+          <option value="gvision">Vision Only (Faster, Basic OCR)</option>
+          <option value="tesseract">Tesseract (Local Fallback)</option>
         </select>
       </div>
       <div>
         <label>DPI:</label>
         <select id="ocr-dpi">
-          <option value="300" selected>300 (Recommended)</option>
-          <option value="400">400 (High Detail)</option>
+          <option value="300" selected>300</option>
+          <option value="400">400</option>
         </select>
       </div>
       <div id="cost-estimate-badge">Est. Cost: $0.00</div>
@@ -224,7 +216,7 @@
     <div class="config-box">
       <button class="btn primary" id="run-batch-ocr">Convert All</button>
       <button class="btn primary" id="download-replace-all">Download &amp; Replace All</button>
-      <span style="font-size:11px;color:#57534e;">Searchable PDFs retain original filenames and embed invisible text layers.</span>
+      <span style="font-size:11px;color:#57534e;">PDFs retain original filenames with invisible text overlays.</span>
     </div>
 
     <div id="ocr-progress">
@@ -236,10 +228,9 @@
     <div id="ocr-product-list"></div>
   </section>
 
-  <!-- SEARCH -->
   <section class="tab-content" id="tab-search">
     <div id="search-controls">
-      <input type="text" id="search-input" placeholder="Search across all OCR'd PDFs (names, batch codes, dates, health marks...)">
+      <input type="text" id="search-input" placeholder="Search across all OCR'd PDFs (names, batch codes, dates...)">
       <div id="search-meta">Nothing indexed yet.</div>
     </div>
     <div id="search-results">
@@ -249,7 +240,6 @@
       </div>
     </div>
   </section>
-
 </main>
 
 <div id="zoom-overlay"><canvas id="zoom-canvas"></canvas></div>
@@ -268,12 +258,12 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
 const DB_NAME = 'LineAssemblyHub';
 const DB_VERSION = 1;
 const THUMB_DPI = 100;
-const DEFAULT_API_KEY = 'AIzaSyCBnG0gCB8PKm5R24XNgrRBiCMoaXAjUPo';
 
 const state = {
   products: [],
   scan: null,
-  googleApiKey: DEFAULT_API_KEY
+  googleApiKey: '',
+  geminiApiKey: ''
 };
 
 // ---- IndexedDB ----
@@ -354,23 +344,26 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 
 // ---- API Key Management ----
 document.getElementById('save-api-key-btn').addEventListener('click', async () => {
-  const key = document.getElementById('api-key-input').value.trim();
-  if (!key) { toast('API Key required', 'error'); return; }
-  state.googleApiKey = key;
-  await dbPut('settings', { key: 'googleApiKey', value: key });
-  document.getElementById('key-status').textContent = 'Saved to IndexedDB';
-  toast('Google Vision API key updated', 'success');
+  const vKey = document.getElementById('api-key-input').value.trim();
+  const gKey = document.getElementById('gemini-key-input').value.trim();
+  
+  if (vKey) { state.googleApiKey = vKey; await dbPut('settings', { key: 'googleApiKey', value: vKey }); }
+  if (gKey) { state.geminiApiKey = gKey; await dbPut('settings', { key: 'geminiApiKey', value: gKey }); }
+  
+  document.getElementById('key-status').textContent = 'Keys Saved to IndexedDB';
+  toast('API keys updated', 'success');
 });
 
-async function loadApiKey() {
+async function loadApiKeys() {
   try {
-    const res = await dbGet('settings', 'googleApiKey');
-    if (res && res.value) {
-      state.googleApiKey = res.value;
-    }
+    const vRes = await dbGet('settings', 'googleApiKey');
+    if (vRes && vRes.value) state.googleApiKey = vRes.value;
+    const gRes = await dbGet('settings', 'geminiApiKey');
+    if (gRes && gRes.value) state.geminiApiKey = gRes.value;
   } catch(e) {}
   document.getElementById('api-key-input').value = state.googleApiKey;
-  document.getElementById('key-status').textContent = state.googleApiKey ? 'Key Active' : 'No Key Set';
+  document.getElementById('gemini-key-input').value = state.geminiApiKey;
+  document.getElementById('key-status').textContent = state.googleApiKey ? 'Keys Loaded' : 'No Keys Set';
 }
 
 // ---- ROUTE & MERGE ----
@@ -633,7 +626,7 @@ function updateProductsList() {
 // ---- BLANK PAGE DETECTION & MERGE ----
 async function isPageBlank(pdfjsDoc, pageNum) {
   const page = await pdfjsDoc.getPage(pageNum);
-  const viewport = page.getViewport({ scale: 0.25 }); // low res for fast analysis
+  const viewport = page.getViewport({ scale: 0.25 });
   const canvas = document.createElement('canvas');
   canvas.width = viewport.width; canvas.height = viewport.height;
   const ctx = canvas.getContext('2d');
@@ -644,11 +637,11 @@ async function isPageBlank(pdfjsDoc, pageNum) {
   let nearWhitePixels = 0;
   const totalPixels = canvas.width * canvas.height;
 
-  for (let i = 0; i < data.length; i += 16) { // sample every 4th pixel
+  for (let i = 0; i < data.length; i += 16) {
     const r = data[i], g = data[i+1], b = data[i+2];
     if (r > 240 && g > 240 && b > 240) nearWhitePixels++;
   }
-  return (nearWhitePixels / (totalPixels / 4)) >= 0.985; // >98.5% white
+  return (nearWhitePixels / (totalPixels / 4)) >= 0.985;
 }
 
 document.getElementById('merge-btn').addEventListener('click', async () => {
@@ -782,7 +775,7 @@ async function restoreFolderHandle() {
   } catch(_) {}
 }
 
-// ---- CONVERT TO OCR (GOOGLE VISION & TESSERACT) ----
+// ---- CONVERT TO OCR (HYBRID ARCHITECTURE) ----
 function refreshOcrTab() {
   const listEl = document.getElementById('ocr-product-list');
   const summaryEl = document.getElementById('ocr-summary');
@@ -820,9 +813,9 @@ function updateCostEstimate() {
   }
 
   const badge = document.getElementById('cost-estimate-badge');
-  if (engine === 'gvision') {
+  if (engine === 'gvision' || engine === 'hybrid') {
     const cost = (pageCount * 0.0015).toFixed(3);
-    badge.textContent = `Est. Cost: ~$${cost} (${pageCount} pages @ $0.0015/pg)`;
+    badge.textContent = `Est. Cost: ~$${cost} Vision API (Gemini is Free Tier)`;
     badge.style.display = 'inline-block';
   } else {
     badge.textContent = 'Est. Cost: $0.00 (Local Tesseract)';
@@ -849,12 +842,11 @@ async function renderPageCanvas(pdfDoc, pageNum, dpi) {
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
   await page.render({ canvasContext: ctx, viewport }).promise;
-  return { canvas, viewport };
+  return { canvas, viewport, base64: canvas.toDataURL('image/jpeg', 0.85).replace(/^data:image\/(png|jpeg);base64,/, "") };
 }
 
-// Google Cloud Vision API Execution
-async function ocrPageWithGoogleVision(canvas, apiKey) {
-  const base64Image = canvas.toDataURL('image/jpeg', 0.85).replace(/^data:image\/(png|jpeg);base64,/, "");
+// 1. Vision API - Geometry Tracking
+async function ocrPageWithGoogleVision(base64Image, apiKey) {
   const payload = {
     requests: [
       {
@@ -870,22 +862,14 @@ async function ocrPageWithGoogleVision(canvas, apiKey) {
     body: JSON.stringify(payload)
   });
 
-  if (!response.ok) {
-    const errData = await response.json();
-    throw new Error(errData.error?.message || `Google API returned ${response.status}`);
-  }
-
+  if (!response.ok) throw new Error(`Google Vision API returned ${response.status}`);
   const resJson = await response.json();
   const res = resJson.responses[0];
-
-  if (res.error) {
-    throw new Error(res.error.message);
-  }
+  if (res.error) throw new Error(res.error.message);
 
   const textAnnotations = res.textAnnotations || [];
-  const fullText = textAnnotations.length > 0 ? textAnnotations[0].description : '';
-
   const words = [];
+  
   for (let i = 1; i < textAnnotations.length; i++) {
     const item = textAnnotations[i];
     const verts = item.boundingPoly?.vertices || [];
@@ -899,17 +883,55 @@ async function ocrPageWithGoogleVision(canvas, apiKey) {
           y0: Math.min(...ys),
           x1: Math.max(...xs),
           y1: Math.max(...ys)
-        },
-        canvasWidth: canvas.width,
-        canvasHeight: canvas.height
+        }
       });
     }
   }
-
-  return { text: fullText, words };
+  return { text: textAnnotations.length > 0 ? textAnnotations[0].description : '', words };
 }
 
-// Tesseract.js Fallback Execution
+// 2. Gemini API - Handwriting Correction
+async function correctWithGemini(base64Image, visionWords, apiKey) {
+  const payloadJson = visionWords.map((w, idx) => ({ i: idx, t: w.text }));
+  
+  const payload = {
+    contents: [{
+      parts: [
+        { text: "You are a QA data corrector. I am providing an image of a factory line sheet and a JSON array of words extracted by a basic OCR engine. The basic engine misreads handwriting (e.g., mistaking numbers for letters in batch codes like US-22315-801). Correct the 't' (text) fields in the JSON array based on the image. Return the exact same JSON array structure, keeping all 'i' (index) values identical. Output ONLY valid JSON." },
+        { text: JSON.stringify(payloadJson) },
+        { inlineData: { mimeType: "image/jpeg", data: base64Image } }
+      ]
+    }],
+    generationConfig: {
+      responseMimeType: "application/json",
+      temperature: 0.1
+    }
+  };
+
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) throw new Error(`Gemini API returned ${response.status}`);
+  const data = await response.json();
+  
+  if (data.candidates && data.candidates[0].content.parts[0].text) {
+    const correctedArr = JSON.parse(data.candidates[0].content.parts[0].text);
+    const correctedWords = JSON.parse(JSON.stringify(visionWords)); // Deep copy
+    
+    correctedArr.forEach(item => {
+      if (item.i !== undefined && correctedWords[item.i]) {
+        correctedWords[item.i].text = item.t;
+      }
+    });
+    return correctedWords;
+  }
+  return visionWords; // Fallback to raw Vision output if parsing fails
+}
+
+// Tesseract.js Fallback
 let tesseractWorker = null;
 async function ocrPageWithTesseract(canvas) {
   if (!tesseractWorker) {
@@ -921,10 +943,7 @@ async function ocrPageWithTesseract(canvas) {
     text: result.data.text,
     words: (result.data.words || []).map(w => ({
       text: w.text,
-      confidence: w.confidence,
-      bbox: w.bbox,
-      canvasWidth: canvas.width,
-      canvasHeight: canvas.height,
+      bbox: w.bbox
     }))
   };
 }
@@ -934,9 +953,11 @@ document.getElementById('run-batch-ocr').addEventListener('click', async () => {
   const dpi = parseInt(document.getElementById('ocr-dpi').value);
   const engine = document.getElementById('ocr-engine-select').value;
 
-  if (engine === 'gvision' && !state.googleApiKey) {
-    toast('Please enter a Google Vision API Key above', 'error');
-    return;
+  if ((engine === 'gvision' || engine === 'hybrid') && !state.googleApiKey) {
+    toast('Vision API Key required', 'error'); return;
+  }
+  if (engine === 'hybrid' && !state.geminiApiKey) {
+    toast('Gemini API Key required for Hybrid mode', 'error'); return;
   }
 
   const jobs = [];
@@ -947,13 +968,15 @@ document.getElementById('run-batch-ocr').addEventListener('click', async () => {
   }
   if (jobs.length === 0) { toast('Nothing to OCR', 'error'); return; }
 
-  toast(`Starting OCR of ${jobs.length} pages using ${engine === 'gvision' ? 'Google Vision' : 'Tesseract'}…`);
+  toast(`Starting OCR of ${jobs.length} pages (${engine})…`);
   let done = 0;
   let currentProductId = null;
   let currentPdfDoc = null;
 
   try {
     for (const job of jobs) {
+      const startTime = Date.now();
+      
       if (job.product.id !== currentProductId) {
         currentProductId = job.product.id;
         currentPdfDoc = await pdfjsLib.getDocument({ data: job.product.pdfBytes.slice() }).promise;
@@ -961,18 +984,38 @@ document.getElementById('run-batch-ocr').addEventListener('click', async () => {
         const row = document.querySelector(`.ocr-product[data-id="${job.product.id}"]`);
         if (row) row.classList.add('processing');
       }
+      
       updateBatchProgress(done, jobs.length, job.product.name);
-      const { canvas } = await renderPageCanvas(currentPdfDoc, job.pageIdx + 1, dpi);
+      const { canvas, viewport, base64 } = await renderPageCanvas(currentPdfDoc, job.pageIdx + 1, dpi);
       
       let res;
-      if (engine === 'gvision') {
-        res = await ocrPageWithGoogleVision(canvas, state.googleApiKey);
+      if (engine === 'hybrid' || engine === 'gvision') {
+        res = await ocrPageWithGoogleVision(base64, state.googleApiKey);
+        res.canvasWidth = canvas.width;
+        res.canvasHeight = canvas.height;
+        
+        if (engine === 'hybrid') {
+          try {
+            res.words = await correctWithGemini(base64, res.words, state.geminiApiKey);
+          } catch (e) {
+            console.warn('Gemini correction failed, using baseline Vision text:', e);
+            toast('Gemini skipped on page ' + (job.pageIdx+1), 'error');
+          }
+        }
       } else {
         res = await ocrPageWithTesseract(canvas);
+        res.canvasWidth = canvas.width;
+        res.canvasHeight = canvas.height;
       }
 
       job.product.ocrByPage[job.pageIdx] = res;
       done++;
+      
+      // Strict Rate Limiting for Gemini Free Tier (15 RPM -> 4.2 sec per request)
+      const elapsed = Date.now() - startTime;
+      if (engine === 'hybrid' && elapsed < 4200) {
+        await new Promise(r => setTimeout(r, 4200 - elapsed));
+      }
     }
 
     const touched = new Set(jobs.map(j => j.product.id));
@@ -981,6 +1024,7 @@ document.getElementById('run-batch-ocr').addEventListener('click', async () => {
       p.lastUpdated = new Date().toISOString();
       await dbPut('products', p);
     }
+    
     hideBatchProgress();
     document.querySelectorAll('.ocr-product').forEach(el => el.classList.remove('processing'));
     refreshOcrTab();
@@ -1014,8 +1058,8 @@ document.getElementById('download-replace-all').addEventListener('click', async 
 
       for (const w of ocr.words) {
         if (!w.text || !w.text.trim() || !w.bbox) continue;
-        const scaleX = pageW / w.canvasWidth;
-        const scaleY = pageH / w.canvasHeight;
+        const scaleX = pageW / ocr.canvasWidth;
+        const scaleY = pageH / ocr.canvasHeight;
         const x = w.bbox.x0 * scaleX;
         const wordH = (w.bbox.y1 - w.bbox.y0) * scaleY;
         const y = pageH - (w.bbox.y0 * scaleY) - wordH;
@@ -1100,7 +1144,7 @@ function refreshSearchMeta() {
 // ---- INIT ----
 async function init() {
   await openDB();
-  await loadApiKey();
+  await loadApiKeys();
   state.products = (await dbGetAll('products')) || [];
   updateProductsList();
   updateStorageStatus();
