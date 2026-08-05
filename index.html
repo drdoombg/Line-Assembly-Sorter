@@ -4,13 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LineAssemblyHub</title>
+
+<!-- PWA & Icons -->
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 14px; color: #1a1a1a; background: #f5f5f4; }
   body { display: flex; flex-direction: column; }
 
-  header { background: #1e293b; color: #f8fafc; padding: 10px 16px; display: flex; align-items: center; gap: 16px; border-bottom: 3px solid #0f766e; }
-  header h1 { font-size: 16px; font-weight: 600; letter-spacing: 0.3px; }
+  header { background: #1e293b; color: #f8fafc; padding: 10px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 3px solid #0f766e; }
+  #app-logo { display: inline-flex; width: 24px; height: 24px; background: #111; border-radius: 4px; align-items: center; justify-content: center; cursor: pointer; }
+  header h1 { font-size: 16px; font-weight: 600; letter-spacing: 0.3px; cursor: pointer; margin-right: 4px; }
   header .tag { font-size: 11px; padding: 2px 8px; background: #0f766e; border-radius: 3px; font-weight: 500; }
   header .status { margin-left: auto; font-size: 12px; opacity: 0.8; }
 
@@ -19,13 +26,17 @@
   nav.tabs button.active { background: #f5f5f4; color: #1a1a1a; border-bottom: 2px solid #0f766e; margin-bottom: -1px; }
   nav.tabs button:hover:not(.active) { background: #f0efee; }
 
+  #global-progress { display: none; padding: 10px 16px; background: #e0f2fe; border-bottom: 1px solid #bae6fd; font-size: 12px; }
+  #global-progress .bar { background: #bae6fd; height: 6px; border-radius: 3px; margin-top: 6px; overflow: hidden; }
+  #global-progress .bar-fill { background: #0284c7; height: 100%; width: 0%; transition: width 0.2s; }
+
   main { flex: 1; overflow: hidden; display: flex; }
   .tab-content { flex: 1; display: none; overflow: hidden; }
   .tab-content.active { display: flex; }
 
   #tab-route { flex-direction: row; }
   #route-scan-panel { flex: 1 1 65%; display: flex; flex-direction: column; border-right: 1px solid #d6d3d1; background: #fafaf9; }
-  #route-products-panel { flex: 1 1 35%; display: flex; flex-direction: column; background: #fff; min-width: 400px; max-width: 550px; }
+  #route-products-panel { flex: 1 1 35%; display: flex; flex-direction: column; background: #fff; min-width: 440px; max-width: 580px; }
 
   .panel-header { padding: 10px 14px; background: #fff; border-bottom: 1px solid #e7e5e4; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .panel-header h2 { font-size: 13px; font-weight: 600; color: #44403c; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -35,7 +46,8 @@
   button.btn:hover:not(:disabled) { background: #f5f5f4; border-color: #a8a29e; }
   button.btn.primary { background: #0f766e; color: #fff; border-color: #0f766e; }
   button.btn.primary:hover:not(:disabled) { background: #115e59; }
-  button.btn.danger { color: #b91c1c; }
+  button.btn.danger { color: #b91c1c; border-color: #fca5a5; background: #fef2f2; }
+  button.btn.danger:hover:not(:disabled) { background: #fee2e2; border-color: #f87171; }
   button.btn.small { padding: 3px 8px; font-size: 11px; }
   button.btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
@@ -61,7 +73,7 @@
   .product-row .p-header { display: flex; align-items: center; gap: 8px; }
   .product-row .p-name { font-weight: 600; font-size: 13px; flex: 1; }
   .product-row .p-meta { font-size: 11px; color: #78716c; margin-top: 4px; }
-  .product-row .p-actions { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
+  .product-row .p-actions { display: flex; gap: 4px; margin-top: 8px; flex-wrap: wrap; }
   .product-row .p-assigned-count { font-size: 11px; padding: 2px 6px; background: #0f766e; color: #fff; border-radius: 3px; }
   .product-row .p-assigned-count.zero { background: #a8a29e; }
 
@@ -69,7 +81,6 @@
   #add-product-form.active { display: block; }
   #add-product-form input { width: 100%; padding: 6px; margin: 4px 0; border: 1px solid #d6d3d1; border-radius: 3px; font-size: 12px; }
   #add-product-form .row { display: flex; gap: 6px; margin-top: 6px; }
-  #add-product-form .hint { font-size: 11px; color: #57534e; margin-top: 4px; }
 
   #tab-ocr { flex-direction: column; overflow-y: auto; }
   .config-box { padding: 12px 16px; background: #fff; border-bottom: 1px solid #e7e5e4; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
@@ -78,7 +89,7 @@
   .scope-radio { display: flex; gap: 12px; align-items: center; }
   .scope-radio label { display: flex; gap: 4px; align-items: center; cursor: pointer; }
   
-  #key-setup-box { background: #f0fdf4; border-bottom: 1px solid #bbf7d0; display: flex; }
+  #key-setup-box { background: #f0fdf4; border-bottom: 1px solid #bbf7d0; display: none; }
   
   #ocr-progress { padding: 10px 16px; background: #fef3c7; border-bottom: 1px solid #fde68a; font-size: 12px; display: none; }
   #ocr-progress.active { display: block; }
@@ -118,22 +129,54 @@
   .empty h3 { font-size: 14px; margin-bottom: 8px; color: #44403c; }
   .empty p { font-size: 12px; }
   .hidden { display: none !important; }
+
+  /* Brand Colors */
+  .brand-aldi { color: #005aa0; font-weight: 700; }
+  .brand-asda { color: #78be20; font-weight: 700; }
+  .brand-ocado { color: #622f99; font-weight: 700; }
+  .brand-ms-m { color: #333333; font-weight: 600; letter-spacing: -0.5px; }
+  .brand-ms-amp { color: #b4d334; font-weight: 400; font-size: 1.1em; }
+  .brand-ms-s { color: #333333; font-weight: 400; letter-spacing: -0.5px; }
 </style>
 </head>
 <body>
 
 <header>
-  <h1>LineAssemblyHub</h1>
-  <span class="tag">v0.7</span>
+  <div id="app-logo" title="Toggle API Keys">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <circle cx="8" cy="8" r="3" fill="#4ade80"/>
+      <circle cx="3" cy="3" r="1.5" fill="#fff"/>
+      <circle cx="13" cy="3" r="1.5" fill="#fff"/>
+      <circle cx="3" cy="13" r="1.5" fill="#fff"/>
+      <circle cx="13" cy="13" r="1.5" fill="#fff"/>
+    </svg>
+  </div>
+  <h1 id="app-title" title="Toggle API Keys">LineAssemblyHub</h1>
+  <span class="tag">v0.8</span>
   <div class="status" id="storage-status" title="Browser local storage allocation">–</div>
   <button class="btn small" id="connect-folder-btn" style="background:#0f766e;color:#fff;border-color:#0f766e;">Connect month folder…</button>
 </header>
+
+<div id="global-progress">
+  <div id="global-progress-text">–</div>
+  <div class="bar"><div class="bar-fill" id="global-progress-bar"></div></div>
+</div>
 
 <nav class="tabs">
   <button class="tab-btn active" data-tab="route">Route &amp; Merge</button>
   <button class="tab-btn" data-tab="ocr">Convert to OCR</button>
   <button class="tab-btn" data-tab="search">Search</button>
 </nav>
+
+<!-- Hidden API Key Configuration -->
+<div class="config-box" id="key-setup-box">
+  <label>Vision Key:</label>
+  <input type="text" id="api-key-input" style="width: 160px;" placeholder="AIzaSy...">
+  <label>Correction Key:</label>
+  <input type="text" id="gemini-key-input" style="width: 160px;" placeholder="AIzaSy...">
+  <button class="btn small" id="save-api-key-btn">Save to Browser Memory</button>
+  <span id="key-status" style="font-size: 11px; color: #166534; font-weight:600;"></span>
+</div>
 
 <main>
   <section class="tab-content active" id="tab-route">
@@ -164,7 +207,8 @@
           <button class="btn small" id="import-existing" title="Import existing PDFs and their pages">Import PDFs</button>
           <button class="btn small" id="show-add-product">+ Add</button>
           <button class="btn small primary" id="merge-btn" disabled>Merge</button>
-          <button class="btn small" id="download-all-pre-ocr">Download All</button>
+          <button class="btn small" id="download-all-pre-ocr" title="Download all PDFs sequentially">Download All</button>
+          <button class="btn small danger" id="clear-all-products" title="Wipe all products for a new month">Clear All</button>
         </div>
         <input type="file" id="import-names-input" accept="application/pdf" multiple class="hidden">
         <input type="file" id="import-existing-input" accept="application/pdf" multiple class="hidden">
@@ -184,16 +228,6 @@
   </section>
 
   <section class="tab-content" id="tab-ocr">
-    <!-- Restored Key Input Box (So you can paste once and save securely) -->
-    <div class="config-box" id="key-setup-box">
-      <label>Vision Key:</label>
-      <input type="text" id="api-key-input" style="width: 140px;" placeholder="AIzaSy...">
-      <label>Gemini Key:</label>
-      <input type="text" id="gemini-key-input" style="width: 140px;" placeholder="AIzaSy...">
-      <button class="btn small" id="save-api-key-btn">Save to Browser Memory</button>
-      <span id="key-status" style="font-size: 11px; color: #166534; font-weight:600;"></span>
-    </div>
-
     <div class="config-box">
       <div class="scope-radio">
         <label><input type="radio" name="ocr-scope" value="new" checked> Only new pages</label>
@@ -254,6 +288,13 @@
 <script>
 'use strict';
 
+// Register Service Worker for PWA
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 const DB_NAME = 'LineAssemblyHub';
@@ -306,14 +347,20 @@ function dbDelete(store, key) {
   });
 }
 
-// ---- API Key Management (Secure IndexedDB) ----
+// ---- API Key Management ----
+document.getElementById('app-logo').addEventListener('click', toggleKeyBox);
+document.getElementById('app-title').addEventListener('click', toggleKeyBox);
+
+function toggleKeyBox() {
+  const box = document.getElementById('key-setup-box');
+  box.style.display = box.style.display === 'flex' ? 'none' : 'flex';
+}
+
 document.getElementById('save-api-key-btn').addEventListener('click', async () => {
   const vKey = document.getElementById('api-key-input').value.trim();
   const gKey = document.getElementById('gemini-key-input').value.trim();
-  
   if (vKey) { state.googleApiKey = vKey; await dbPut('settings', { key: 'googleApiKey', value: vKey }); }
   if (gKey) { state.geminiApiKey = gKey; await dbPut('settings', { key: 'geminiApiKey', value: gKey }); }
-  
   document.getElementById('key-status').textContent = 'Keys securely saved!';
   toast('API keys saved to browser', 'success');
 });
@@ -343,6 +390,16 @@ function toast(msg, type = '') {
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
 async function readFileAsBytes(file) { return new Uint8Array(await file.arrayBuffer()); }
 function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function formatBrandColor(name) {
+  let esc = escapeHtml(name);
+  esc = esc.replace(/Aldi/gi, '<span class="brand-aldi">$&</span>');
+  esc = esc.replace(/ASDA/gi, '<span class="brand-asda">$&</span>');
+  esc = esc.replace(/Ocado/gi, '<span class="brand-ocado">$&</span>');
+  esc = esc.replace(/M&amp;S/gi, '<span class="brand-ms-m">M</span><span class="brand-ms-amp">&amp;</span><span class="brand-ms-s">S</span>');
+  return esc;
+}
+
 function formatBytes(n) {
   if (n < 1024) return n + ' B';
   if (n < 1024*1024) return (n/1024).toFixed(1) + ' KB';
@@ -362,6 +419,14 @@ function downloadPdf(bytes, filename) {
   const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+function updateGlobalProgress(done, total, label) {
+  const p = document.getElementById('global-progress');
+  p.style.display = 'block';
+  document.getElementById('global-progress-text').textContent = `${label} (${done}/${total})`;
+  document.getElementById('global-progress-bar').style.width = ((done/total)*100) + '%';
+}
+function hideGlobalProgress() { document.getElementById('global-progress').style.display = 'none'; }
 
 // ---- Tabs ----
 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -559,6 +624,20 @@ document.getElementById('save-product').addEventListener('click', async () => {
   toast('Product added', 'success');
 });
 
+// Global Clear
+document.getElementById('clear-all-products').addEventListener('click', async () => {
+  if (state.products.length === 0) return;
+  if (!confirm('Are you absolutely sure you want to clear ALL products? This completely wipes the internal database.')) return;
+  state.products = [];
+  const tx = db.transaction('products', 'readwrite');
+  await tx.objectStore('products').clear();
+  updateProductsList();
+  if (state.scan) refreshThumbSelects();
+  updateMergeButton();
+  updateStorageStatus();
+  toast('All products deleted', 'success');
+});
+
 // Import Names
 document.getElementById('import-names-btn').addEventListener('click', () => document.getElementById('import-names-input').click());
 document.getElementById('import-names-input').addEventListener('change', async (e) => {
@@ -610,17 +689,21 @@ document.getElementById('import-existing-input').addEventListener('change', asyn
   toast(`Imported ${added}${skipped ? ' (' + skipped + ' skipped)' : ''}`, 'success');
 });
 
-// Download All Pre-OCR
-document.getElementById('download-all-pre-ocr').addEventListener('click', () => {
+// Download All Pre-OCR (Sequential Download Loop)
+document.getElementById('download-all-pre-ocr').addEventListener('click', async () => {
+  const toDownload = state.products.filter(p => p.pageCount > 0);
+  if (toDownload.length === 0) { toast('No files to download.', 'error'); return; }
+  
   let count = 0;
-  state.products.forEach(p => {
-    if (p.pageCount > 0) {
-      downloadPdf(p.pdfBytes, p.sourceFileName || (p.name + '.pdf'));
-      count++;
-    }
-  });
-  if (count > 0) toast(`Downloading ${count} files...`, 'success');
-  else toast('No files to download.', 'error');
+  for (const p of toDownload) {
+    updateGlobalProgress(count, toDownload.length, `Downloading: ${p.name}`);
+    downloadPdf(p.pdfBytes, p.sourceFileName || (p.name + '.pdf'));
+    count++;
+    await new Promise(r => setTimeout(r, 450));
+  }
+  updateGlobalProgress(count, toDownload.length, 'Downloads complete');
+  setTimeout(hideGlobalProgress, 1500);
+  toast(`Downloaded ${count} files.`, 'success');
 });
 
 function updateProductsList() {
@@ -633,7 +716,7 @@ function updateProductsList() {
     const assignedCount = state.scan ? state.scan.pages.filter(pg => pg.assignedProductId === p.id).length : 0;
     return `<div class="product-row" data-id="${p.id}">
       <div class="p-header">
-        <span class="p-name">${escapeHtml(p.name)}</span>
+        <span class="p-name">${formatBrandColor(p.name)}</span>
         <span class="p-assigned-count ${assignedCount === 0 ? 'zero' : ''}">${assignedCount} new</span>
       </div>
       <div class="p-meta">${p.pageCount} pages · ${Object.keys(p.ocrByPage||{}).length} OCR'd · ${new Date(p.lastUpdated).toLocaleString()}</div>
@@ -722,7 +805,6 @@ document.getElementById('merge-btn').addEventListener('click', async () => {
     const newOcrByPage = {};
     let newIdx = 0;
 
-    // Filter existing pages in the product doc
     if (product.pageCount > 0) {
       const oldPdfJsDoc = await pdfjsLib.getDocument({ data: product.pdfBytes.slice() }).promise;
       for (let i = 0; i < oldProductDoc.getPageCount(); i++) {
@@ -740,7 +822,6 @@ document.getElementById('merge-btn').addEventListener('click', async () => {
       }
     }
 
-    // Append non-blank new pages from scan
     for (const pageIdx of byProduct[productId]) {
       const blank = await isPageBlank(state.scan.pdfDoc, pageIdx + 1);
       if (!blank) {
@@ -793,6 +874,16 @@ function updateFolderStatus() {
   const btn = document.getElementById('connect-folder-btn');
   if (folderHandle) { btn.textContent = '📁 ' + folderHandle.name + ' (change…)'; btn.style.background = '#166534'; btn.style.borderColor = '#166534'; }
   else { btn.textContent = 'Connect month folder…'; btn.style.background = '#0f766e'; btn.style.borderColor = '#0f766e'; }
+}
+
+async function checkFolderConnection() {
+  if (!folderHandle) return false;
+  try {
+    await folderHandle.values().next();
+    return true;
+  } catch(e) {
+    return false;
+  }
 }
 
 async function loadProductsFromFolder() {
@@ -863,7 +954,7 @@ function refreshOcrTab() {
     const pending = total - ocrd;
     totalPages += total; totalOcrd += ocrd; totalPending += pending;
     return `<div class="ocr-product" data-id="${p.id}">
-      <span class="name">${escapeHtml(p.name)}</span>
+      <span class="name">${formatBrandColor(p.name)}</span>
       <span class="stat total">${total} pages</span>
       <span class="stat ocrd">${ocrd} OCR'd</span>
       <span class="stat pending ${pending===0?'zero':''}">${pending} pending</span>
@@ -892,7 +983,7 @@ async function renderPageCanvas(pdfDoc, pageNum, dpi) {
   return { canvas, viewport, base64: canvas.toDataURL('image/jpeg', 0.85).replace(/^data:image\/(png|jpeg);base64,/, "") };
 }
 
-// 1. Vision API - Geometry Tracking
+// 1. Vision API
 async function ocrPageWithGoogleVision(base64Image, apiKey) {
   const payload = {
     requests: [
@@ -937,7 +1028,7 @@ async function ocrPageWithGoogleVision(base64Image, apiKey) {
   return { text: textAnnotations.length > 0 ? textAnnotations[0].description : '', words };
 }
 
-// 2. Tesseract.js - Geometry Tracking
+// 2. Tesseract.js 
 let tesseractWorker = null;
 async function ocrPageWithTesseract(canvas) {
   if (!tesseractWorker) {
@@ -954,7 +1045,7 @@ async function ocrPageWithTesseract(canvas) {
   };
 }
 
-// 3. Gemini API - Handwriting Correction
+// 3. Gemini Correction
 async function correctWithGemini(base64Image, wordsArray, apiKey) {
   const payloadJson = wordsArray.map((w, idx) => ({ i: idx, t: w.text }));
   
@@ -1004,7 +1095,7 @@ document.getElementById('run-batch-ocr').addEventListener('click', async () => {
     toast('Vision API Key required', 'error'); return;
   }
   if (!state.geminiApiKey) {
-    toast('Gemini API Key required for correction', 'error'); return;
+    toast('Gemini Correction Key required', 'error'); return;
   }
 
   const jobs = [];
@@ -1088,10 +1179,21 @@ document.getElementById('download-replace-all').addEventListener('click', async 
   const productsWithOcr = state.products.filter(p => Object.keys(p.ocrByPage || {}).length > 0);
   if (productsWithOcr.length === 0) { toast('No OCR data — run OCR first', 'error'); return; }
 
-  toast('Building searchable PDFs…');
   let saved = 0, downloaded = 0;
+  const total = productsWithOcr.length;
+  
+  // Connection stability check
+  const isFolderActive = await checkFolderConnection();
+  if (folderHandle && !isFolderActive) {
+    folderHandle = null;
+    updateFolderStatus();
+    toast('Folder connection lost. Rerouting to Downloads folder.', 'error');
+    await new Promise(r => setTimeout(r, 2000));
+  }
 
+  let count = 0;
   for (const product of productsWithOcr) {
+    updateGlobalProgress(count, total, `Processing text overlay: ${product.name}`);
     const pdfDoc = await PDFLib.PDFDocument.load(product.pdfBytes.slice());
     const helv = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
     const pages = pdfDoc.getPages();
@@ -1117,23 +1219,27 @@ document.getElementById('download-replace-all').addEventListener('click', async 
     }
     const newBytes = await pdfDoc.save();
 
-    if (folderHandle) {
+    if (isFolderActive) {
       const ok = await saveProductToFolder(product, newBytes);
       if (ok) saved++;
+      else {
+        downloadPdf(newBytes, product.sourceFileName || (product.name + '.pdf'));
+        downloaded++;
+        await new Promise(r => setTimeout(r, 450));
+      }
     } else {
-      const blob = new Blob([newBytes], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = product.sourceFileName || (product.name + '.pdf');
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      downloadPdf(newBytes, product.sourceFileName || (product.name + '.pdf'));
       downloaded++;
-      await new Promise(r => setTimeout(r, 350));
+      await new Promise(r => setTimeout(r, 450));
     }
+    count++;
   }
 
-  if (saved > 0) toast(`Saved ${saved} searchable PDFs to ${folderHandle.name}`, 'success');
+  updateGlobalProgress(count, total, 'Operations complete');
+  setTimeout(hideGlobalProgress, 1500);
+
+  if (saved > 0 && downloaded === 0) toast(`Saved ${saved} searchable PDFs to folder`, 'success');
+  else if (saved > 0 && downloaded > 0) toast(`Saved ${saved} to folder, fallback downloaded ${downloaded}`, 'success');
   else toast(`Downloaded ${downloaded} searchable PDFs`, 'success');
 });
 
@@ -1175,7 +1281,7 @@ function doSearch() {
     return;
   }
   resultsEl.innerHTML = results.map(r => `<div class="search-result">
-    <div class="r-header"><span class="r-product">${escapeHtml(r.productName)}</span><span class="r-page">page ${r.pageIdx+1}</span></div>
+    <div class="r-header"><span class="r-product">${formatBrandColor(r.productName)}</span><span class="r-page">page ${r.pageIdx+1}</span></div>
     <div class="r-snippet">${r.snippet}</div>
   </div>`).join('');
 }
