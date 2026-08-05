@@ -16,7 +16,7 @@
   body { display: flex; flex-direction: column; }
 
   header { background: #1e293b; color: #f8fafc; padding: 10px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 3px solid #0f766e; }
-  #app-logo { display: inline-flex; width: 24px; height: 24px; background: #111; border-radius: 4px; align-items: center; justify-content: center; cursor: pointer; }
+  #app-logo { display: inline-flex; align-items: center; justify-content: center; cursor: pointer; margin-right: -4px; }
   header h1 { font-size: 16px; font-weight: 600; letter-spacing: 0.3px; cursor: pointer; margin-right: 4px; }
   header .tag { font-size: 11px; padding: 2px 8px; background: #0f766e; border-radius: 3px; font-weight: 500; }
   header .status { margin-left: auto; font-size: 12px; opacity: 0.8; }
@@ -62,7 +62,7 @@
   .thumb.assigned { border-color: #0f766e; box-shadow: 0 0 0 1px #0f766e; }
   .thumb canvas { width: 100%; height: auto; display: block; background: #f5f5f4; border: 1px solid #e7e5e4; cursor: zoom-in; }
   .thumb .page-num { font-size: 11px; color: #78716c; margin-top: 6px; text-align: center; font-weight: 500; }
-  .thumb select { width: 100%; margin-top: 6px; font-size: 13px; padding: 6px; border: 1px solid #d6d3d1; border-radius: 3px; }
+  .thumb select { width: 100%; margin-top: 6px; font-size: 13px; padding: 6px; border: 1px solid #d6d3d1; border-radius: 3px; font-weight: 500; }
 
   #zoom-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 2000; display: none; align-items: center; justify-content: center; padding: 20px; cursor: zoom-out; }
   #zoom-overlay.show { display: flex; }
@@ -130,29 +130,34 @@
   .empty p { font-size: 12px; }
   .hidden { display: none !important; }
 
-  /* Brand Colors */
+  /* Brand Colors & Badges */
   .brand-aldi { color: #005aa0; font-weight: 700; }
   .brand-asda { color: #78be20; font-weight: 700; }
-  .brand-ocado { color: #622f99; font-weight: 700; }
-  .brand-ms-m { color: #333333; font-weight: 600; letter-spacing: -0.5px; }
-  .brand-ms-amp { color: #b4d334; font-weight: 400; font-size: 1.1em; }
-  .brand-ms-s { color: #333333; font-weight: 400; letter-spacing: -0.5px; }
+  .brand-ocado { color: #9333ea; font-weight: 700; } /* Lightened Purple */
+  .brand-ms-badge { background: #111; color: #fff; padding: 2px 6px; border-radius: 4px; font-weight: 600; font-size: 0.9em; letter-spacing: 0.5px; }
 </style>
 </head>
 <body>
 
 <header>
   <div id="app-logo" title="Toggle API Keys">
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-      <circle cx="8" cy="8" r="3" fill="#4ade80"/>
-      <circle cx="3" cy="3" r="1.5" fill="#fff"/>
-      <circle cx="13" cy="3" r="1.5" fill="#fff"/>
-      <circle cx="3" cy="13" r="1.5" fill="#fff"/>
-      <circle cx="13" cy="13" r="1.5" fill="#fff"/>
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="24" height="24" rx="6" fill="#111520"/>
+      <path d="M6 4C6 2.895 6.895 2 8 2H14L19 7V20C19 21.105 18.105 22 17 22H8C6.895 22 6 21.105 6 20V4Z" fill="#E8EDF4"/>
+      <path d="M14 2L19 7H15C14.448 7 14 6.552 14 6V2Z" fill="#CBD5E1"/>
+      <rect x="8" y="6" width="6" height="2" rx="1" fill="#4A7CF6"/>
+      <rect x="8" y="9" width="3" height="2" rx="1" fill="#34D399"/>
+      <rect x="12" y="9" width="4" height="2" rx="1" fill="#86EFAC"/>
+      <circle cx="9" cy="13" r="1.5" fill="#60A5FA"/>
+      <circle cx="12.5" cy="13" r="1.5" fill="#93C5FD"/>
+      <circle cx="16" cy="13" r="1.5" fill="#DBEAFE"/>
+      <rect x="8" y="16" width="9" height="0.5" fill="#CBD5E1"/>
+      <rect x="8" y="17.5" width="4" height="1.5" rx="0.75" fill="#CBD5E1"/>
+      <rect x="8" y="19.5" width="2.5" height="1.5" rx="0.75" fill="#CBD5E1"/>
     </svg>
   </div>
   <h1 id="app-title" title="Toggle API Keys">LineAssemblyHub</h1>
-  <span class="tag">v0.8</span>
+  <span class="tag">v0.11</span>
   <div class="status" id="storage-status" title="Browser local storage allocation">–</div>
   <button class="btn small" id="connect-folder-btn" style="background:#0f766e;color:#fff;border-color:#0f766e;">Connect month folder…</button>
 </header>
@@ -391,13 +396,31 @@ function uid() { return Date.now().toString(36) + Math.random().toString(36).sli
 async function readFileAsBytes(file) { return new Uint8Array(await file.arrayBuffer()); }
 function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
+// HTML injection formatting for the lists/UI panels
 function formatBrandColor(name) {
   let esc = escapeHtml(name);
   esc = esc.replace(/Aldi/gi, '<span class="brand-aldi">$&</span>');
   esc = esc.replace(/ASDA/gi, '<span class="brand-asda">$&</span>');
   esc = esc.replace(/Ocado/gi, '<span class="brand-ocado">$&</span>');
-  esc = esc.replace(/M&amp;S/gi, '<span class="brand-ms-m">M</span><span class="brand-ms-amp">&amp;</span><span class="brand-ms-s">S</span>');
+  esc = esc.replace(/M&amp;S/gi, '<span class="brand-ms-badge">$&</span>');
   return esc;
+}
+
+// Inline CSS styling for HTML <select> <option> tags
+function productOptionsHtml() {
+  // Sort alphabetically so the dropdown list is clean
+  const sorted = [...state.products].sort((a, b) => a.name.localeCompare(b.name));
+  
+  return sorted.map(p => {
+    let style = '';
+    const nameL = p.name.toLowerCase();
+    if (nameL.includes('aldi')) style = 'color: #005aa0; font-weight: bold;';
+    else if (nameL.includes('asda')) style = 'color: #78be20; font-weight: bold;';
+    else if (nameL.includes('ocado')) style = 'color: #9333ea; font-weight: bold;';
+    else if (nameL.includes('m&s')) style = 'background-color: #1a1a1a; color: #ffffff; font-weight: bold;';
+    
+    return `<option value="${p.id}" style="${style}">${escapeHtml(p.name)}</option>`;
+  }).join('');
 }
 
 function formatBytes(n) {
@@ -479,10 +502,6 @@ async function loadScan(file) {
   }
 }
 
-function productOptionsHtml() {
-  return state.products.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
-}
-
 async function renderThumbs() {
   const thumbsEl = document.getElementById('thumbs');
   thumbsEl.innerHTML = '';
@@ -513,7 +532,7 @@ async function renderThumbs() {
 
     const sel = document.createElement('select');
     sel.dataset.pageIdx = i - 1;
-    sel.innerHTML = `<option value="">— unassigned —</option><option value="__new__">+ New product from this page…</option>${productOptionsHtml()}`;
+    sel.innerHTML = `<option value="">— unassigned —</option><option value="__new__" style="color:#0f766e;">+ New product from this page…</option>${productOptionsHtml()}`;
     sel.addEventListener('change', handleAssignChange);
     div.appendChild(sel);
 
@@ -526,7 +545,7 @@ function refreshThumbSelects() {
   const opts = productOptionsHtml();
   document.querySelectorAll('#thumbs select').forEach(sel => {
     const current = sel.value;
-    sel.innerHTML = `<option value="">— unassigned —</option><option value="__new__">+ New product from this page…</option>${opts}`;
+    sel.innerHTML = `<option value="">— unassigned —</option><option value="__new__" style="color:#0f766e;">+ New product from this page…</option>${opts}`;
     if (current && current !== '__new__' && state.products.some(p => p.id === current)) {
       sel.value = current;
     }
@@ -712,7 +731,11 @@ function updateProductsList() {
     el.innerHTML = '<div class="empty"><h3>No products yet</h3><p>Import existing PDFs, add manually, or use "+ New product…" on a thumbnail.</p></div>';
     return;
   }
-  el.innerHTML = state.products.map(p => {
+  
+  // Sort list alphabetically to match dropdown behavior
+  const sorted = [...state.products].sort((a, b) => a.name.localeCompare(b.name));
+  
+  el.innerHTML = sorted.map(p => {
     const assignedCount = state.scan ? state.scan.pages.filter(pg => pg.assignedProductId === p.id).length : 0;
     return `<div class="product-row" data-id="${p.id}">
       <div class="p-header">
@@ -948,7 +971,10 @@ function refreshOcrTab() {
     return;
   }
   let totalPages = 0, totalOcrd = 0, totalPending = 0;
-  const rows = state.products.map(p => {
+  
+  const sorted = [...state.products].sort((a, b) => a.name.localeCompare(b.name));
+  
+  const rows = sorted.map(p => {
     const total = p.pageCount;
     const ocrd = Object.keys(p.ocrByPage || {}).length;
     const pending = total - ocrd;
@@ -1092,10 +1118,10 @@ document.getElementById('run-batch-ocr').addEventListener('click', async () => {
   const engine = document.getElementById('ocr-engine-select').value;
   
   if (!state.googleApiKey && engine === 'vision_correction') {
-    toast('Vision API Key required', 'error'); return;
+    toast('Vision Key required', 'error'); return;
   }
   if (!state.geminiApiKey) {
-    toast('Gemini Correction Key required', 'error'); return;
+    toast('Correction Key required', 'error'); return;
   }
 
   const jobs = [];
