@@ -133,7 +133,7 @@
   /* Brand Colors & Badges */
   .brand-aldi { color: #005aa0; font-weight: 700; }
   .brand-asda { color: #78be20; font-weight: 700; }
-  .brand-ocado { color: #9333ea; font-weight: 700; } /* Lightened Purple */
+  .brand-ocado { color: #9333ea; font-weight: 700; }
   .brand-ms-badge { background: #111; color: #fff; padding: 2px 6px; border-radius: 4px; font-weight: 600; font-size: 0.9em; letter-spacing: 0.5px; }
 </style>
 </head>
@@ -157,7 +157,7 @@
     </svg>
   </div>
   <h1 id="app-title" title="Toggle API Keys">LineAssemblyHub</h1>
-  <span class="tag">v0.11</span>
+  <span class="tag">v0.12</span>
   <div class="status" id="storage-status" title="Browser local storage allocation">–</div>
   <button class="btn small" id="connect-folder-btn" style="background:#0f766e;color:#fff;border-color:#0f766e;">Connect month folder…</button>
 </header>
@@ -257,6 +257,7 @@
     <div class="config-box">
       <button class="btn primary" id="run-batch-ocr">Convert All</button>
       <button class="btn primary" id="download-replace-all">Download &amp; Replace All</button>
+      <button class="btn primary" id="download-only-all" title="Download directly to browser Downloads folder">Only Download</button>
     </div>
 
     <div id="ocr-progress">
@@ -396,7 +397,6 @@ function uid() { return Date.now().toString(36) + Math.random().toString(36).sli
 async function readFileAsBytes(file) { return new Uint8Array(await file.arrayBuffer()); }
 function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
-// HTML injection formatting for the lists/UI panels
 function formatBrandColor(name) {
   let esc = escapeHtml(name);
   esc = esc.replace(/Aldi/gi, '<span class="brand-aldi">$&</span>');
@@ -406,9 +406,7 @@ function formatBrandColor(name) {
   return esc;
 }
 
-// Inline CSS styling for HTML <select> <option> tags
 function productOptionsHtml() {
-  // Sort alphabetically so the dropdown list is clean
   const sorted = [...state.products].sort((a, b) => a.name.localeCompare(b.name));
   
   return sorted.map(p => {
@@ -732,7 +730,6 @@ function updateProductsList() {
     return;
   }
   
-  // Sort list alphabetically to match dropdown behavior
   const sorted = [...state.products].sort((a, b) => a.name.localeCompare(b.name));
   
   el.innerHTML = sorted.map(p => {
@@ -1268,6 +1265,54 @@ document.getElementById('download-replace-all').addEventListener('click', async 
   else if (saved > 0 && downloaded > 0) toast(`Saved ${saved} to folder, fallback downloaded ${downloaded}`, 'success');
   else toast(`Downloaded ${downloaded} searchable PDFs`, 'success');
 });
+
+// ONLY DOWNLOAD — Force output to standard browser downloads
+document.getElementById('download-only-all').addEventListener('click', async () => {
+  const productsWithOcr = state.products.filter(p => Object.keys(p.ocrByPage || {}).length > 0);
+  if (productsWithOcr.length === 0) { toast('No OCR data — run OCR first', 'error'); return; }
+
+  let downloaded = 0;
+  const total = productsWithOcr.length;
+
+  let count = 0;
+  for (const product of productsWithOcr) {
+    updateGlobalProgress(count, total, `Building PDF: ${product.name}`);
+    const pdfDoc = await PDFLib.PDFDocument.load(product.pdfBytes.slice());
+    const helv = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+    const pages = pdfDoc.getPages();
+
+    for (let i = 0; i < pages.length; i++) {
+      const ocr = product.ocrByPage[i];
+      if (!ocr || !ocr.words) continue;
+      const page = pages[i];
+      const { width: pageW, height: pageH } = page.getSize();
+
+      for (const w of ocr.words) {
+        if (!w.text || !w.text.trim() || !w.bbox) continue;
+        const scaleX = pageW / ocr.canvasWidth;
+        const scaleY = pageH / ocr.canvasHeight;
+        const x = w.bbox.x0 * scaleX;
+        const wordH = (w.bbox.y1 - w.bbox.y0) * scaleY;
+        const y = pageH - (w.bbox.y0 * scaleY) - wordH;
+        const fontSize = Math.max(4, wordH * 0.9);
+        try {
+          page.drawText(w.text, { x, y, size: fontSize, font: helv, color: PDFLib.rgb(0,0,0), opacity: 0 });
+        } catch(_) {}
+      }
+    }
+    const newBytes = await pdfDoc.save();
+
+    downloadPdf(newBytes, product.sourceFileName || (product.name + '.pdf'));
+    downloaded++;
+    count++;
+    await new Promise(r => setTimeout(r, 450));
+  }
+
+  updateGlobalProgress(count, total, 'Downloads complete');
+  setTimeout(hideGlobalProgress, 1500);
+  toast(`Downloaded ${downloaded} searchable PDFs`, 'success');
+});
+
 
 // ---- SEARCH ----
 document.getElementById('search-input').addEventListener('input', doSearch);
