@@ -25,7 +25,7 @@
 
   #tab-route { flex-direction: row; }
   #route-scan-panel { flex: 1 1 65%; display: flex; flex-direction: column; border-right: 1px solid #d6d3d1; background: #fafaf9; }
-  #route-products-panel { flex: 1 1 35%; display: flex; flex-direction: column; background: #fff; min-width: 340px; max-width: 480px; }
+  #route-products-panel { flex: 1 1 35%; display: flex; flex-direction: column; background: #fff; min-width: 400px; max-width: 550px; }
 
   .panel-header { padding: 10px 14px; background: #fff; border-bottom: 1px solid #e7e5e4; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .panel-header h2 { font-size: 13px; font-weight: 600; color: #44403c; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -61,7 +61,7 @@
   .product-row .p-header { display: flex; align-items: center; gap: 8px; }
   .product-row .p-name { font-weight: 600; font-size: 13px; flex: 1; }
   .product-row .p-meta { font-size: 11px; color: #78716c; margin-top: 4px; }
-  .product-row .p-actions { display: flex; gap: 4px; margin-top: 6px; }
+  .product-row .p-actions { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
   .product-row .p-assigned-count { font-size: 11px; padding: 2px 6px; background: #0f766e; color: #fff; border-radius: 3px; }
   .product-row .p-assigned-count.zero { background: #a8a29e; }
 
@@ -74,16 +74,16 @@
   #tab-ocr { flex-direction: column; overflow-y: auto; }
   .config-box { padding: 12px 16px; background: #fff; border-bottom: 1px solid #e7e5e4; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
   .config-box label { font-size: 12px; color: #57534e; font-weight: 500; }
-  .config-box input[type="text"], .config-box select { padding: 5px 8px; font-size: 12px; border: 1px solid #d6d3d1; border-radius: 3px; }
+  .config-box select, .config-box input[type="text"] { padding: 5px 8px; font-size: 12px; border: 1px solid #d6d3d1; border-radius: 3px; }
   .scope-radio { display: flex; gap: 12px; align-items: center; }
   .scope-radio label { display: flex; gap: 4px; align-items: center; cursor: pointer; }
+  
+  #key-setup-box { background: #f0fdf4; border-bottom: 1px solid #bbf7d0; display: flex; }
   
   #ocr-progress { padding: 10px 16px; background: #fef3c7; border-bottom: 1px solid #fde68a; font-size: 12px; display: none; }
   #ocr-progress.active { display: block; }
   #ocr-progress .bar { background: #fde68a; height: 6px; border-radius: 3px; margin-top: 6px; overflow: hidden; }
   #ocr-progress .bar-fill { background: #d97706; height: 100%; width: 0%; transition: width 0.2s; }
-
-  #cost-estimate-badge { font-size: 11px; font-weight: 600; color: #0f766e; background: #ccfbf1; padding: 4px 8px; border-radius: 4px; border: 1px solid #99f6e4; display: none; }
 
   #ocr-summary { padding: 12px 16px; font-size: 12px; color: #57534e; background: #fafaf9; border-bottom: 1px solid #e7e5e4; }
   #ocr-product-list { padding: 12px 16px; }
@@ -124,7 +124,7 @@
 
 <header>
   <h1>LineAssemblyHub</h1>
-  <span class="tag">v0.5 (Vision + Gemini Hybrid)</span>
+  <span class="tag">v0.7</span>
   <div class="status" id="storage-status" title="Browser local storage allocation">–</div>
   <button class="btn small" id="connect-folder-btn" style="background:#0f766e;color:#fff;border-color:#0f766e;">Connect month folder…</button>
 </header>
@@ -160,10 +160,13 @@
       <div class="panel-header">
         <h2>Products (month bundle)</h2>
         <div class="actions">
-          <button class="btn small" id="import-existing">Import PDFs</button>
+          <button class="btn small" id="import-names-btn" title="Create empty product buckets from a folder of PDFs">Import Names</button>
+          <button class="btn small" id="import-existing" title="Import existing PDFs and their pages">Import PDFs</button>
           <button class="btn small" id="show-add-product">+ Add</button>
           <button class="btn small primary" id="merge-btn" disabled>Merge</button>
+          <button class="btn small" id="download-all-pre-ocr">Download All</button>
         </div>
+        <input type="file" id="import-names-input" accept="application/pdf" multiple class="hidden">
         <input type="file" id="import-existing-input" accept="application/pdf" multiple class="hidden">
       </div>
       <div id="route-products">
@@ -181,13 +184,14 @@
   </section>
 
   <section class="tab-content" id="tab-ocr">
-    <div class="config-box">
-      <label>Vision Key (Coords):</label>
-      <input type="text" id="api-key-input" style="width: 220px;" placeholder="AIzaSy...">
-      <label>Gemini Key (Text):</label>
-      <input type="text" id="gemini-key-input" style="width: 220px;" placeholder="AIzaSy...">
-      <button class="btn small" id="save-api-key-btn">Save Keys</button>
-      <span id="key-status" style="font-size: 11px; color: #78716c;"></span>
+    <!-- Restored Key Input Box (So you can paste once and save securely) -->
+    <div class="config-box" id="key-setup-box">
+      <label>Vision Key:</label>
+      <input type="text" id="api-key-input" style="width: 140px;" placeholder="AIzaSy...">
+      <label>Gemini Key:</label>
+      <input type="text" id="gemini-key-input" style="width: 140px;" placeholder="AIzaSy...">
+      <button class="btn small" id="save-api-key-btn">Save to Browser Memory</button>
+      <span id="key-status" style="font-size: 11px; color: #166534; font-weight:600;"></span>
     </div>
 
     <div class="config-box">
@@ -198,9 +202,8 @@
       <div>
         <label>Engine:</label>
         <select id="ocr-engine-select">
-          <option value="hybrid" selected>Hybrid (Vision Coords + Gemini Correction)</option>
-          <option value="gvision">Vision Only (Faster, Basic OCR)</option>
-          <option value="tesseract">Tesseract (Local Fallback)</option>
+          <option value="vision_correction" selected>Vision + Correction</option>
+          <option value="tesseract_correction">Tesseract + Correction</option>
         </select>
       </div>
       <div>
@@ -210,13 +213,11 @@
           <option value="400">400</option>
         </select>
       </div>
-      <div id="cost-estimate-badge">Est. Cost: $0.00</div>
     </div>
 
     <div class="config-box">
       <button class="btn primary" id="run-batch-ocr">Convert All</button>
       <button class="btn primary" id="download-replace-all">Download &amp; Replace All</button>
-      <span style="font-size:11px;color:#57534e;">PDFs retain original filenames with invisible text overlays.</span>
     </div>
 
     <div id="ocr-progress">
@@ -305,6 +306,32 @@ function dbDelete(store, key) {
   });
 }
 
+// ---- API Key Management (Secure IndexedDB) ----
+document.getElementById('save-api-key-btn').addEventListener('click', async () => {
+  const vKey = document.getElementById('api-key-input').value.trim();
+  const gKey = document.getElementById('gemini-key-input').value.trim();
+  
+  if (vKey) { state.googleApiKey = vKey; await dbPut('settings', { key: 'googleApiKey', value: vKey }); }
+  if (gKey) { state.geminiApiKey = gKey; await dbPut('settings', { key: 'geminiApiKey', value: gKey }); }
+  
+  document.getElementById('key-status').textContent = 'Keys securely saved!';
+  toast('API keys saved to browser', 'success');
+});
+
+async function loadApiKeys() {
+  try {
+    const vRes = await dbGet('settings', 'googleApiKey');
+    if (vRes && vRes.value) state.googleApiKey = vRes.value;
+    const gRes = await dbGet('settings', 'geminiApiKey');
+    if (gRes && gRes.value) state.geminiApiKey = gRes.value;
+  } catch(e) {}
+  document.getElementById('api-key-input').value = state.googleApiKey;
+  document.getElementById('gemini-key-input').value = state.geminiApiKey;
+  if (state.googleApiKey || state.geminiApiKey) {
+    document.getElementById('key-status').textContent = 'Keys loaded from browser.';
+  }
+}
+
 // ---- Utils ----
 function toast(msg, type = '') {
   const el = document.getElementById('toast');
@@ -329,6 +356,12 @@ async function updateStorageStatus() {
     }
   } catch(e) {}
 }
+function downloadPdf(bytes, filename) {
+  const blob = new Blob([bytes], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 // ---- Tabs ----
 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -337,34 +370,10 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
-    if (btn.dataset.tab === 'ocr') { refreshOcrTab(); updateCostEstimate(); }
+    if (btn.dataset.tab === 'ocr') refreshOcrTab();
     if (btn.dataset.tab === 'search') refreshSearchMeta();
   });
 });
-
-// ---- API Key Management ----
-document.getElementById('save-api-key-btn').addEventListener('click', async () => {
-  const vKey = document.getElementById('api-key-input').value.trim();
-  const gKey = document.getElementById('gemini-key-input').value.trim();
-  
-  if (vKey) { state.googleApiKey = vKey; await dbPut('settings', { key: 'googleApiKey', value: vKey }); }
-  if (gKey) { state.geminiApiKey = gKey; await dbPut('settings', { key: 'geminiApiKey', value: gKey }); }
-  
-  document.getElementById('key-status').textContent = 'Keys Saved to IndexedDB';
-  toast('API keys updated', 'success');
-});
-
-async function loadApiKeys() {
-  try {
-    const vRes = await dbGet('settings', 'googleApiKey');
-    if (vRes && vRes.value) state.googleApiKey = vRes.value;
-    const gRes = await dbGet('settings', 'geminiApiKey');
-    if (gRes && gRes.value) state.geminiApiKey = gRes.value;
-  } catch(e) {}
-  document.getElementById('api-key-input').value = state.googleApiKey;
-  document.getElementById('gemini-key-input').value = state.geminiApiKey;
-  document.getElementById('key-status').textContent = state.googleApiKey ? 'Keys Loaded' : 'No Keys Set';
-}
 
 // ---- ROUTE & MERGE ----
 const dropzone = document.getElementById('route-dropzone');
@@ -464,7 +473,7 @@ async function handleAssignChange(e) {
   let val = e.target.value || null;
 
   if (val === '__new__') {
-    const name = prompt('New product name (e.g. "Ocado Salt and Pepper Crown"):');
+    const name = prompt('New product name (e.g. Ocado Salt and Pepper Crown):');
     if (!name || !name.trim()) {
       e.target.value = state.scan.pages[idx].assignedProductId || '';
       return;
@@ -550,6 +559,30 @@ document.getElementById('save-product').addEventListener('click', async () => {
   toast('Product added', 'success');
 });
 
+// Import Names
+document.getElementById('import-names-btn').addEventListener('click', () => document.getElementById('import-names-input').click());
+document.getElementById('import-names-input').addEventListener('change', async (e) => {
+  const files = Array.from(e.target.files || []);
+  if (files.length === 0) return;
+  let added = 0;
+  for (const file of files) {
+    const name = file.name.replace(/\.pdf$/i, '').trim();
+    if (!state.products.some(p => p.name === name)) {
+      const emptyDoc = await PDFLib.PDFDocument.create();
+      const pdfBytes = await emptyDoc.save();
+      const product = { id: uid(), name, pdfBytes, pageCount: 0, ocrByPage: {}, lastUpdated: new Date().toISOString() };
+      state.products.push(product);
+      await dbPut('products', product);
+      added++;
+    }
+  }
+  updateProductsList();
+  if (state.scan) refreshThumbSelects();
+  toast(`Imported ${added} names from files`, 'success');
+  e.target.value = '';
+});
+
+// Import Existing
 document.getElementById('import-existing').addEventListener('click', () => {
   document.getElementById('import-existing-input').click();
 });
@@ -577,6 +610,19 @@ document.getElementById('import-existing-input').addEventListener('change', asyn
   toast(`Imported ${added}${skipped ? ' (' + skipped + ' skipped)' : ''}`, 'success');
 });
 
+// Download All Pre-OCR
+document.getElementById('download-all-pre-ocr').addEventListener('click', () => {
+  let count = 0;
+  state.products.forEach(p => {
+    if (p.pageCount > 0) {
+      downloadPdf(p.pdfBytes, p.sourceFileName || (p.name + '.pdf'));
+      count++;
+    }
+  });
+  if (count > 0) toast(`Downloading ${count} files...`, 'success');
+  else toast('No files to download.', 'error');
+});
+
 function updateProductsList() {
   const el = document.getElementById('products-list');
   if (state.products.length === 0) {
@@ -594,6 +640,7 @@ function updateProductsList() {
       <div class="p-actions">
         <button class="btn small rename-product" data-id="${p.id}">Rename</button>
         <button class="btn small danger delete-product" data-id="${p.id}">Delete</button>
+        <button class="btn small dl-product" data-id="${p.id}">Download</button>
       </div>
     </div>`;
   }).join('');
@@ -619,6 +666,12 @@ function updateProductsList() {
       await dbPut('products', p);
       updateProductsList();
       if (state.scan) refreshThumbSelects();
+    });
+  });
+  el.querySelectorAll('.dl-product').forEach(b => {
+    b.addEventListener('click', () => {
+      const p = state.products.find(x => x.id === b.dataset.id);
+      downloadPdf(p.pdfBytes, p.sourceFileName || (p.name + '.pdf'));
     });
   });
 }
@@ -663,32 +716,51 @@ document.getElementById('merge-btn').addEventListener('click', async () => {
     const product = state.products.find(p => p.id === productId);
     if (!product) continue;
 
-    const productDoc = await PDFLib.PDFDocument.load(product.pdfBytes.slice());
+    const oldProductDoc = await PDFLib.PDFDocument.load(product.pdfBytes.slice());
     const scanDoc = await PDFLib.PDFDocument.load(state.scan.pdfBytes.slice());
+    const newProductDoc = await PDFLib.PDFDocument.create();
+    const newOcrByPage = {};
+    let newIdx = 0;
 
-    const pagesToKeep = [];
-    for (const pageIdx of byProduct[productId]) {
-      const blank = await isPageBlank(state.scan.pdfDoc, pageIdx + 1);
-      if (blank) {
-        droppedBlankPages++;
-      } else {
-        pagesToKeep.push(pageIdx);
+    // Filter existing pages in the product doc
+    if (product.pageCount > 0) {
+      const oldPdfJsDoc = await pdfjsLib.getDocument({ data: product.pdfBytes.slice() }).promise;
+      for (let i = 0; i < oldProductDoc.getPageCount(); i++) {
+        const blank = await isPageBlank(oldPdfJsDoc, i + 1);
+        if (!blank) {
+          const [copiedPage] = await newProductDoc.copyPages(oldProductDoc, [i]);
+          newProductDoc.addPage(copiedPage);
+          if (product.ocrByPage && product.ocrByPage[i]) {
+            newOcrByPage[newIdx] = product.ocrByPage[i];
+          }
+          newIdx++;
+        } else {
+          droppedBlankPages++;
+        }
       }
     }
 
-    if (pagesToKeep.length > 0) {
-      const copiedPages = await productDoc.copyPages(scanDoc, pagesToKeep);
-      copiedPages.forEach(cp => productDoc.addPage(cp));
-      const newBytes = await productDoc.save();
-      product.pdfBytes = newBytes;
-      product.pageCount = productDoc.getPageCount();
-      product.lastUpdated = new Date().toISOString();
-      await dbPut('products', product);
-      mergedPages += pagesToKeep.length;
+    // Append non-blank new pages from scan
+    for (const pageIdx of byProduct[productId]) {
+      const blank = await isPageBlank(state.scan.pdfDoc, pageIdx + 1);
+      if (!blank) {
+        const [copiedPage] = await newProductDoc.copyPages(scanDoc, [pageIdx]);
+        newProductDoc.addPage(copiedPage);
+        newIdx++;
+        mergedPages++;
+      } else {
+        droppedBlankPages++;
+      }
     }
+
+    product.pdfBytes = await newProductDoc.save();
+    product.pageCount = newProductDoc.getPageCount();
+    product.ocrByPage = newOcrByPage; 
+    product.lastUpdated = new Date().toISOString();
+    await dbPut('products', product);
   }
 
-  const dropNotice = droppedBlankPages > 0 ? ` (Dropped ${droppedBlankPages} blank page${droppedBlankPages > 1 ? 's' : ''})` : '';
+  const dropNotice = droppedBlankPages > 0 ? ` (Dropped ${droppedBlankPages} blank page${droppedBlankPages > 1 ? 's' : ''} globally)` : '';
   toast(`Merged ${mergedPages} pages into ${Object.keys(byProduct).length} products${dropNotice}.`, 'success');
 
   state.scan = null;
@@ -775,7 +847,7 @@ async function restoreFolderHandle() {
   } catch(_) {}
 }
 
-// ---- CONVERT TO OCR (HYBRID ARCHITECTURE) ----
+// ---- CONVERT TO OCR (DUAL ENGINE) ----
 function refreshOcrTab() {
   const listEl = document.getElementById('ocr-product-list');
   const summaryEl = document.getElementById('ocr-summary');
@@ -800,31 +872,6 @@ function refreshOcrTab() {
   listEl.innerHTML = rows;
   summaryEl.innerHTML = `<strong>${state.products.length}</strong> products · <strong>${totalPages}</strong> total pages · <strong>${totalOcrd}</strong> OCR'd · <strong>${totalPending}</strong> pending`;
 }
-
-function updateCostEstimate() {
-  const scope = document.querySelector('input[name="ocr-scope"]:checked')?.value || 'new';
-  const engine = document.getElementById('ocr-engine-select').value;
-  let pageCount = 0;
-
-  for (const p of state.products) {
-    for (let i = 0; i < p.pageCount; i++) {
-      if (scope === 'all' || !p.ocrByPage[i]) pageCount++;
-    }
-  }
-
-  const badge = document.getElementById('cost-estimate-badge');
-  if (engine === 'gvision' || engine === 'hybrid') {
-    const cost = (pageCount * 0.0015).toFixed(3);
-    badge.textContent = `Est. Cost: ~$${cost} Vision API (Gemini is Free Tier)`;
-    badge.style.display = 'inline-block';
-  } else {
-    badge.textContent = 'Est. Cost: $0.00 (Local Tesseract)';
-  }
-}
-
-document.querySelectorAll('input[name="ocr-scope"], #ocr-engine-select').forEach(el => {
-  el.addEventListener('change', updateCostEstimate);
-});
 
 function updateBatchProgress(done, total, label) {
   const p = document.getElementById('ocr-progress');
@@ -890,9 +937,26 @@ async function ocrPageWithGoogleVision(base64Image, apiKey) {
   return { text: textAnnotations.length > 0 ? textAnnotations[0].description : '', words };
 }
 
-// 2. Gemini API - Handwriting Correction
-async function correctWithGemini(base64Image, visionWords, apiKey) {
-  const payloadJson = visionWords.map((w, idx) => ({ i: idx, t: w.text }));
+// 2. Tesseract.js - Geometry Tracking
+let tesseractWorker = null;
+async function ocrPageWithTesseract(canvas) {
+  if (!tesseractWorker) {
+    tesseractWorker = await Tesseract.createWorker('eng', 1, { logger: () => {} });
+  }
+  await tesseractWorker.setParameters({ tessedit_pageseg_mode: '6' });
+  const result = await tesseractWorker.recognize(canvas, {}, { blocks: true });
+  return {
+    text: result.data.text,
+    words: (result.data.words || []).map(w => ({
+      text: w.text,
+      bbox: w.bbox
+    }))
+  };
+}
+
+// 3. Gemini API - Handwriting Correction
+async function correctWithGemini(base64Image, wordsArray, apiKey) {
+  const payloadJson = wordsArray.map((w, idx) => ({ i: idx, t: w.text }));
   
   const payload = {
     contents: [{
@@ -919,7 +983,7 @@ async function correctWithGemini(base64Image, visionWords, apiKey) {
   
   if (data.candidates && data.candidates[0].content.parts[0].text) {
     const correctedArr = JSON.parse(data.candidates[0].content.parts[0].text);
-    const correctedWords = JSON.parse(JSON.stringify(visionWords)); // Deep copy
+    const correctedWords = JSON.parse(JSON.stringify(wordsArray));
     
     correctedArr.forEach(item => {
       if (item.i !== undefined && correctedWords[item.i]) {
@@ -928,36 +992,19 @@ async function correctWithGemini(base64Image, visionWords, apiKey) {
     });
     return correctedWords;
   }
-  return visionWords; // Fallback to raw Vision output if parsing fails
-}
-
-// Tesseract.js Fallback
-let tesseractWorker = null;
-async function ocrPageWithTesseract(canvas) {
-  if (!tesseractWorker) {
-    tesseractWorker = await Tesseract.createWorker('eng', 1, { logger: () => {} });
-  }
-  await tesseractWorker.setParameters({ tessedit_pageseg_mode: '6' });
-  const result = await tesseractWorker.recognize(canvas, {}, { blocks: true });
-  return {
-    text: result.data.text,
-    words: (result.data.words || []).map(w => ({
-      text: w.text,
-      bbox: w.bbox
-    }))
-  };
+  return wordsArray;
 }
 
 document.getElementById('run-batch-ocr').addEventListener('click', async () => {
   const scope = document.querySelector('input[name="ocr-scope"]:checked').value;
   const dpi = parseInt(document.getElementById('ocr-dpi').value);
   const engine = document.getElementById('ocr-engine-select').value;
-
-  if ((engine === 'gvision' || engine === 'hybrid') && !state.googleApiKey) {
+  
+  if (!state.googleApiKey && engine === 'vision_correction') {
     toast('Vision API Key required', 'error'); return;
   }
-  if (engine === 'hybrid' && !state.geminiApiKey) {
-    toast('Gemini API Key required for Hybrid mode', 'error'); return;
+  if (!state.geminiApiKey) {
+    toast('Gemini API Key required for correction', 'error'); return;
   }
 
   const jobs = [];
@@ -968,7 +1015,7 @@ document.getElementById('run-batch-ocr').addEventListener('click', async () => {
   }
   if (jobs.length === 0) { toast('Nothing to OCR', 'error'); return; }
 
-  toast(`Starting OCR of ${jobs.length} pages (${engine})…`);
+  toast(`Starting OCR of ${jobs.length} pages…`);
   let done = 0;
   let currentProductId = null;
   let currentPdfDoc = null;
@@ -989,31 +1036,31 @@ document.getElementById('run-batch-ocr').addEventListener('click', async () => {
       const { canvas, viewport, base64 } = await renderPageCanvas(currentPdfDoc, job.pageIdx + 1, dpi);
       
       let res;
-      if (engine === 'hybrid' || engine === 'gvision') {
+      if (engine === 'vision_correction') {
         res = await ocrPageWithGoogleVision(base64, state.googleApiKey);
         res.canvasWidth = canvas.width;
         res.canvasHeight = canvas.height;
-        
-        if (engine === 'hybrid') {
-          try {
-            res.words = await correctWithGemini(base64, res.words, state.geminiApiKey);
-          } catch (e) {
-            console.warn('Gemini correction failed, using baseline Vision text:', e);
-            toast('Gemini skipped on page ' + (job.pageIdx+1), 'error');
-          }
+        try {
+          res.words = await correctWithGemini(base64, res.words, state.geminiApiKey);
+        } catch (e) {
+          console.warn('Correction fallback on page', job.pageIdx + 1, e);
         }
-      } else {
+      } else if (engine === 'tesseract_correction') {
         res = await ocrPageWithTesseract(canvas);
         res.canvasWidth = canvas.width;
         res.canvasHeight = canvas.height;
+        try {
+          res.words = await correctWithGemini(base64, res.words, state.geminiApiKey);
+        } catch (e) {
+          console.warn('Correction fallback on page', job.pageIdx + 1, e);
+        }
       }
 
       job.product.ocrByPage[job.pageIdx] = res;
       done++;
       
-      // Strict Rate Limiting for Gemini Free Tier (15 RPM -> 4.2 sec per request)
       const elapsed = Date.now() - startTime;
-      if (engine === 'hybrid' && elapsed < 4200) {
+      if (elapsed < 4200) {
         await new Promise(r => setTimeout(r, 4200 - elapsed));
       }
     }
@@ -1028,7 +1075,6 @@ document.getElementById('run-batch-ocr').addEventListener('click', async () => {
     hideBatchProgress();
     document.querySelectorAll('.ocr-product').forEach(el => el.classList.remove('processing'));
     refreshOcrTab();
-    updateCostEstimate();
     toast('OCR complete for ' + done + ' pages', 'success');
   } catch(err) {
     console.error(err);
