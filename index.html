@@ -21,14 +21,16 @@
   header .tag { font-size: 11px; padding: 2px 8px; background: #0f766e; border-radius: 3px; font-weight: 500; }
   header .status { margin-left: auto; font-size: 12px; opacity: 0.8; }
 
+  #throttle-warning { background: #fef08a; color: #854d0e; padding: 8px 16px; font-size: 12px; font-weight: 500; text-align: center; border-bottom: 1px solid #fde047; }
+  
+  #global-progress { display: none; padding: 10px 16px; background: #e0f2fe; border-bottom: 1px solid #bae6fd; font-size: 12px; }
+  #global-progress .bar { background: #bae6fd; height: 6px; border-radius: 3px; margin-top: 6px; overflow: hidden; }
+  #global-progress .bar-fill { background: #0284c7; height: 100%; width: 0%; transition: width 0.2s; }
+
   nav.tabs { display: flex; background: #e7e5e4; border-bottom: 1px solid #d6d3d1; }
   nav.tabs button { padding: 10px 20px; background: transparent; border: none; border-right: 1px solid #d6d3d1; cursor: pointer; font-size: 13px; font-weight: 500; color: #57534e; }
   nav.tabs button.active { background: #f5f5f4; color: #1a1a1a; border-bottom: 2px solid #0f766e; margin-bottom: -1px; }
   nav.tabs button:hover:not(.active) { background: #f0efee; }
-
-  #global-progress { display: none; padding: 10px 16px; background: #e0f2fe; border-bottom: 1px solid #bae6fd; font-size: 12px; }
-  #global-progress .bar { background: #bae6fd; height: 6px; border-radius: 3px; margin-top: 6px; overflow: hidden; }
-  #global-progress .bar-fill { background: #0284c7; height: 100%; width: 0%; transition: width 0.2s; }
 
   main { flex: 1; overflow: hidden; display: flex; }
   .tab-content { flex: 1; display: none; overflow: hidden; }
@@ -60,7 +62,10 @@
   #thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 14px; margin-top: 12px; }
   .thumb { background: #fff; border: 2px solid #d6d3d1; border-radius: 4px; padding: 8px; position: relative; }
   .thumb.assigned { border-color: #0f766e; box-shadow: 0 0 0 1px #0f766e; }
-  .thumb canvas { width: 100%; height: auto; display: block; background: #f5f5f4; border: 1px solid #e7e5e4; cursor: zoom-in; }
+  .thumb .canvas-wrap { display: flex; justify-content: center; align-items: center; background: #f5f5f4; border: 1px solid #e7e5e4; overflow: hidden; position: relative; cursor: zoom-in; }
+  .thumb canvas { width: 100%; height: auto; transition: transform 0.3s ease; }
+  .thumb .rotate-btn { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.6); color: #fff; border: none; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 12px; z-index: 10; }
+  .thumb .rotate-btn:hover { background: rgba(0,0,0,0.8); }
   .thumb .page-num { font-size: 11px; color: #78716c; margin-top: 6px; text-align: center; font-weight: 500; }
   .thumb select { width: 100%; margin-top: 6px; font-size: 13px; padding: 6px; border: 1px solid #d6d3d1; border-radius: 3px; font-weight: 500; }
 
@@ -90,6 +95,7 @@
   .scope-radio label { display: flex; gap: 4px; align-items: center; cursor: pointer; }
   
   #key-setup-box { background: #f0fdf4; border-bottom: 1px solid #bbf7d0; display: none; }
+  #quota-display { margin-left: auto; font-size: 11px; font-weight: 600; color: #1e3a8a; background: #bae6fd; padding: 4px 10px; border-radius: 4px; border: 1px solid #7dd3fc; }
   
   #ocr-progress { padding: 10px 16px; background: #fef3c7; border-bottom: 1px solid #fde68a; font-size: 12px; display: none; }
   #ocr-progress.active { display: block; }
@@ -157,10 +163,12 @@
     </svg>
   </div>
   <h1 id="app-title" title="Toggle API Keys">LineAssemblyHub</h1>
-  <span class="tag">v0.12</span>
+  <span class="tag">v0.13</span>
   <div class="status" id="storage-status" title="Browser local storage allocation">–</div>
   <button class="btn small" id="connect-folder-btn" style="background:#0f766e;color:#fff;border-color:#0f766e;">Connect month folder…</button>
 </header>
+
+<div id="throttle-warning">⚠️ Note: Keep this tab open in its own separate window. Browsers automatically pause background tabs, which will halt OCR processing.</div>
 
 <div id="global-progress">
   <div id="global-progress-text">–</div>
@@ -197,7 +205,7 @@
         <div id="route-dropzone">
           <p><strong>Drop today's combined scan PDF here</strong></p>
           <p class="hint">or click to browse</p>
-          <p class="hint" style="margin-top: 14px;">Click thumbnail to zoom. Blank pages are automatically skipped during merge.</p>
+          <p class="hint" style="margin-top: 14px;">"Mixing Batch" pages are automatically rotated horizontal.</p>
         </div>
         <input type="file" id="scan-input" accept="application/pdf" class="hidden">
         <div id="thumbs"></div>
@@ -248,10 +256,10 @@
       <div>
         <label>DPI:</label>
         <select id="ocr-dpi">
-          <option value="300" selected>300</option>
-          <option value="400">400</option>
+          <option value="400" selected>400</option>
         </select>
       </div>
+      <div id="quota-display">Quotas loading...</div>
     </div>
 
     <div class="config-box">
@@ -311,7 +319,13 @@ const state = {
   products: [],
   scan: null,
   googleApiKey: '',
-  geminiApiKey: ''
+  geminiApiKey: '',
+  quotas: {
+    date: new Date().toDateString(),
+    geminiCount: 0,
+    visionMonth: new Date().getMonth(),
+    visionCount: 0
+  }
 };
 
 // ---- IndexedDB ----
@@ -351,6 +365,40 @@ function dbDelete(store, key) {
     const tx = db.transaction(store, 'readwrite').objectStore(store).delete(key);
     tx.onsuccess = () => res(); tx.onerror = () => rej(tx.error);
   });
+}
+
+// ---- Quota System ----
+async function loadQuotas() {
+  try {
+    const qRes = await dbGet('settings', 'quotas');
+    if (qRes && qRes.value) {
+      const q = qRes.value;
+      const today = new Date().toDateString();
+      const thisMonth = new Date().getMonth();
+      
+      if (q.date !== today) { q.geminiCount = 0; q.date = today; }
+      if (q.visionMonth !== thisMonth) { q.visionCount = 0; q.visionMonth = thisMonth; }
+      
+      state.quotas = q;
+    }
+  } catch(e) {}
+  updateQuotaDisplay();
+}
+
+async function saveQuotas() {
+  await dbPut('settings', { key: 'quotas', value: state.quotas });
+  updateQuotaDisplay();
+}
+
+function updateQuotaDisplay() {
+  const geminiRemaining = Math.max(0, 1500 - state.quotas.geminiCount);
+  const visionRemaining = Math.max(0, 1000 - state.quotas.visionCount);
+  document.getElementById('quota-display').innerHTML = `Remaining Quotas &rarr; Gemini: <b>${geminiRemaining}</b>/day | Vision: <b>${visionRemaining}</b>/mo`;
+  
+  if (visionRemaining <= 0 && document.getElementById('ocr-engine-select').value === 'vision_correction') {
+    document.getElementById('ocr-engine-select').value = 'tesseract_correction';
+    toast('Vision quota hit. Auto-switched to Tesseract.', 'error');
+  }
 }
 
 // ---- API Key Management ----
@@ -408,7 +456,6 @@ function formatBrandColor(name) {
 
 function productOptionsHtml() {
   const sorted = [...state.products].sort((a, b) => a.name.localeCompare(b.name));
-  
   return sorted.map(p => {
     let style = '';
     const nameL = p.name.toLowerCase();
@@ -416,7 +463,6 @@ function productOptionsHtml() {
     else if (nameL.includes('asda')) style = 'color: #78be20; font-weight: bold;';
     else if (nameL.includes('ocado')) style = 'color: #9333ea; font-weight: bold;';
     else if (nameL.includes('m&s')) style = 'background-color: #1a1a1a; color: #ffffff; font-weight: bold;';
-    
     return `<option value="${p.id}" style="${style}">${escapeHtml(p.name)}</option>`;
   }).join('');
 }
@@ -518,9 +564,24 @@ async function renderThumbs() {
     const div = document.createElement('div');
     div.className = 'thumb';
     div.dataset.pageIdx = i - 1;
+    
     const canvasWrap = document.createElement('div');
+    canvasWrap.className = 'canvas-wrap';
     canvasWrap.appendChild(canvas);
-    canvas.addEventListener('click', () => showZoom(canvas));
+    
+    // Manual Rotation Button
+    const rotateBtn = document.createElement('button');
+    rotateBtn.className = 'rotate-btn';
+    rotateBtn.textContent = '↻ Rotate';
+    rotateBtn.onclick = (e) => {
+      e.stopPropagation();
+      let r = state.scan.pages[i-1].rotation || 0;
+      r = (r + 90) % 360;
+      state.scan.pages[i-1].rotation = r;
+      canvas.style.transform = `rotate(${r}deg)`;
+    };
+    canvasWrap.appendChild(rotateBtn);
+    
     div.appendChild(canvasWrap);
 
     const pageNum = document.createElement('div');
@@ -535,7 +596,7 @@ async function renderThumbs() {
     div.appendChild(sel);
 
     thumbsEl.appendChild(div);
-    state.scan.pages.push({ index: i - 1, assignedProductId: null });
+    state.scan.pages.push({ index: i - 1, assignedProductId: null, rotation: 0 });
   }
 }
 
@@ -593,18 +654,6 @@ function updateMergeButton() {
   const anyAssigned = state.scan && state.scan.pages.some(p => p.assignedProductId);
   document.getElementById('merge-btn').disabled = !anyAssigned;
 }
-
-function showZoom(sourceCanvas) {
-  const overlay = document.getElementById('zoom-overlay');
-  const target = document.getElementById('zoom-canvas');
-  target.width = sourceCanvas.width;
-  target.height = sourceCanvas.height;
-  target.getContext('2d').drawImage(sourceCanvas, 0, 0);
-  overlay.classList.add('show');
-}
-document.getElementById('zoom-overlay').addEventListener('click', () => {
-  document.getElementById('zoom-overlay').classList.remove('show');
-});
 
 // Product Management
 document.getElementById('show-add-product').addEventListener('click', () => {
@@ -723,6 +772,48 @@ document.getElementById('download-all-pre-ocr').addEventListener('click', async 
   toast(`Downloaded ${count} files.`, 'success');
 });
 
+// Repair Tool: Flatten PDF (Removes duplicate OCR text layers)
+async function flattenPdfProduct(productId) {
+  const product = state.products.find(x => x.id === productId);
+  if (!product || product.pageCount === 0) return;
+  
+  if (!confirm(`Flattening will strip all embedded text layers from ${product.name} to fix duplicate OCR issues. Continue?`)) return;
+  
+  updateGlobalProgress(0, 1, `Flattening ${product.name}...`);
+  try {
+    const oldPdfJsDoc = await pdfjsLib.getDocument({ data: product.pdfBytes.slice() }).promise;
+    const newDoc = await PDFLib.PDFDocument.create();
+    
+    for (let i = 1; i <= oldPdfJsDoc.numPages; i++) {
+      const page = await oldPdfJsDoc.getPage(i);
+      const viewport = page.getViewport({ scale: 400 / 72 }); // Render at high res
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width; canvas.height = viewport.height;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      
+      const imgData = canvas.toDataURL('image/jpeg', 0.85);
+      const image = await newDoc.embedJpg(imgData);
+      const newPage = newDoc.addPage([viewport.width, viewport.height]);
+      newPage.drawImage(image, { x: 0, y: 0, width: viewport.width, height: viewport.height });
+    }
+    
+    product.pdfBytes = await newDoc.save();
+    product.ocrByPage = {}; // Reset tracking completely
+    product.lastUpdated = new Date().toISOString();
+    await dbPut('products', product);
+    
+    updateProductsList();
+    if (state.scan) refreshThumbSelects();
+    toast('PDF flattened successfully. Ready for fresh OCR.', 'success');
+  } catch(e) {
+    console.error(e);
+    toast('Flattening failed: ' + e.message, 'error');
+  }
+  hideGlobalProgress();
+}
+
 function updateProductsList() {
   const el = document.getElementById('products-list');
   if (state.products.length === 0) {
@@ -744,6 +835,7 @@ function updateProductsList() {
         <button class="btn small rename-product" data-id="${p.id}">Rename</button>
         <button class="btn small danger delete-product" data-id="${p.id}">Delete</button>
         <button class="btn small dl-product" data-id="${p.id}">Download</button>
+        <button class="btn small danger flatten-product" data-id="${p.id}" title="Strips existing OCR layers to fix duplicates">Flatten (Repair)</button>
       </div>
     </div>`;
   }).join('');
@@ -777,6 +869,9 @@ function updateProductsList() {
       downloadPdf(p.pdfBytes, p.sourceFileName || (p.name + '.pdf'));
     });
   });
+  el.querySelectorAll('.flatten-product').forEach(b => {
+    b.addEventListener('click', () => flattenPdfProduct(b.dataset.id));
+  });
 }
 
 // ---- BLANK PAGE DETECTION & MERGE ----
@@ -806,7 +901,7 @@ document.getElementById('merge-btn').addEventListener('click', async () => {
   state.scan.pages.forEach(pg => {
     if (pg.assignedProductId) {
       if (!byProduct[pg.assignedProductId]) byProduct[pg.assignedProductId] = [];
-      byProduct[pg.assignedProductId].push(pg.index);
+      byProduct[pg.assignedProductId].push(pg);
     }
   });
   if (Object.keys(byProduct).length === 0) { toast('No pages assigned', 'error'); return; }
@@ -842,10 +937,24 @@ document.getElementById('merge-btn').addEventListener('click', async () => {
       }
     }
 
-    for (const pageIdx of byProduct[productId]) {
-      const blank = await isPageBlank(state.scan.pdfDoc, pageIdx + 1);
+    // Is it a Mixing Batch? Auto-rotate landscape
+    const isMixingBatch = product.name.toLowerCase().includes('mixing batch');
+
+    for (const pgObj of byProduct[productId]) {
+      const blank = await isPageBlank(state.scan.pdfDoc, pgObj.index + 1);
       if (!blank) {
-        const [copiedPage] = await newProductDoc.copyPages(scanDoc, [pageIdx]);
+        const [copiedPage] = await newProductDoc.copyPages(scanDoc, [pgObj.index]);
+        
+        let rotation = pgObj.rotation || 0;
+        if (isMixingBatch && rotation === 0) {
+          rotation = 90; // Auto-rotate horizontal
+        }
+        
+        if (rotation !== 0) {
+          const currentRotation = copiedPage.getRotation().angle;
+          copiedPage.setRotation(PDFLib.degrees(currentRotation + rotation));
+        }
+
         newProductDoc.addPage(copiedPage);
         newIdx++;
         mergedPages++;
@@ -1006,52 +1115,45 @@ async function renderPageCanvas(pdfDoc, pageNum, dpi) {
   return { canvas, viewport, base64: canvas.toDataURL('image/jpeg', 0.85).replace(/^data:image\/(png|jpeg);base64,/, "") };
 }
 
-// 1. Vision API
+// 1. Pre-Check for Duplicate Layers
+async function pageHasText(pdfDoc, pageNum) {
+  const page = await pdfDoc.getPage(pageNum);
+  const textContent = await page.getTextContent();
+  return textContent.items.length > 5; // If it has more than 5 elements, it already has an OCR layer
+}
+
+// 2. Vision API
 async function ocrPageWithGoogleVision(base64Image, apiKey) {
-  const payload = {
-    requests: [
-      {
-        image: { content: base64Image },
-        features: [{ type: "DOCUMENT_TEXT_DETECTION" }]
-      }
-    ]
-  };
-
+  const payload = { requests: [{ image: { content: base64Image }, features: [{ type: "DOCUMENT_TEXT_DETECTION" }] }] };
   const response = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
   });
-
-  if (!response.ok) throw new Error(`Google Vision API returned ${response.status}`);
+  if (!response.ok) {
+    if(response.status === 403) throw new Error("VISION_QUOTA");
+    throw new Error(`Google Vision API returned ${response.status}`);
+  }
   const resJson = await response.json();
   const res = resJson.responses[0];
   if (res.error) throw new Error(res.error.message);
+  
+  state.quotas.visionCount += 1;
+  saveQuotas();
 
   const textAnnotations = res.textAnnotations || [];
   const words = [];
-  
   for (let i = 1; i < textAnnotations.length; i++) {
     const item = textAnnotations[i];
     const verts = item.boundingPoly?.vertices || [];
     if (verts.length >= 2) {
       const xs = verts.map(v => v.x || 0);
       const ys = verts.map(v => v.y || 0);
-      words.push({
-        text: item.description,
-        bbox: {
-          x0: Math.min(...xs),
-          y0: Math.min(...ys),
-          x1: Math.max(...xs),
-          y1: Math.max(...ys)
-        }
-      });
+      words.push({ text: item.description, bbox: { x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys) }});
     }
   }
   return { text: textAnnotations.length > 0 ? textAnnotations[0].description : '', words };
 }
 
-// 2. Tesseract.js 
+// 3. Tesseract.js 
 let tesseractWorker = null;
 async function ocrPageWithTesseract(canvas) {
   if (!tesseractWorker) {
@@ -1061,49 +1163,41 @@ async function ocrPageWithTesseract(canvas) {
   const result = await tesseractWorker.recognize(canvas, {}, { blocks: true });
   return {
     text: result.data.text,
-    words: (result.data.words || []).map(w => ({
-      text: w.text,
-      bbox: w.bbox
-    }))
+    words: (result.data.words || []).map(w => ({ text: w.text, bbox: w.bbox }))
   };
 }
 
-// 3. Gemini Correction
+// 4. Gemini Correction
 async function correctWithGemini(base64Image, wordsArray, apiKey) {
+  if (state.quotas.geminiCount >= 1500) throw new Error("GEMINI_QUOTA");
+
   const payloadJson = wordsArray.map((w, idx) => ({ i: idx, t: w.text }));
-  
   const payload = {
-    contents: [{
-      parts: [
-        { text: "You are a QA data corrector. I am providing an image of a factory line sheet and a JSON array of words extracted by a basic OCR engine. The basic engine misreads handwriting (e.g., mistaking numbers for letters in batch codes like US-22315-801). Correct the 't' (text) fields in the JSON array based on the image. Return the exact same JSON array structure, keeping all 'i' (index) values identical. Output ONLY valid JSON." },
+    contents: [{ parts: [
+        { text: "You are a QA data corrector. I am providing an image of a factory line sheet and a JSON array of words extracted by a basic OCR engine. The basic engine misreads handwriting. Correct the 't' (text) fields in the JSON array based on the image. Return the exact same JSON array structure, keeping all 'i' (index) values identical. Output ONLY valid JSON." },
         { text: JSON.stringify(payloadJson) },
         { inlineData: { mimeType: "image/jpeg", data: base64Image } }
-      ]
-    }],
-    generationConfig: {
-      responseMimeType: "application/json",
-      temperature: 0.1
-    }
+    ]}],
+    generationConfig: { responseMimeType: "application/json", temperature: 0.1 }
   };
 
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
   });
 
-  if (!response.ok) throw new Error(`Gemini API returned ${response.status}`);
-  const data = await response.json();
+  if (!response.ok) {
+    if(response.status === 429) throw new Error("GEMINI_QUOTA");
+    throw new Error(`Gemini API returned ${response.status}`);
+  }
   
+  state.quotas.geminiCount += 1;
+  saveQuotas();
+
+  const data = await response.json();
   if (data.candidates && data.candidates[0].content.parts[0].text) {
     const correctedArr = JSON.parse(data.candidates[0].content.parts[0].text);
     const correctedWords = JSON.parse(JSON.stringify(wordsArray));
-    
-    correctedArr.forEach(item => {
-      if (item.i !== undefined && correctedWords[item.i]) {
-        correctedWords[item.i].text = item.t;
-      }
-    });
+    correctedArr.forEach(item => { if (item.i !== undefined && correctedWords[item.i]) { correctedWords[item.i].text = item.t; }});
     return correctedWords;
   }
   return wordsArray;
@@ -1112,7 +1206,7 @@ async function correctWithGemini(base64Image, wordsArray, apiKey) {
 document.getElementById('run-batch-ocr').addEventListener('click', async () => {
   const scope = document.querySelector('input[name="ocr-scope"]:checked').value;
   const dpi = parseInt(document.getElementById('ocr-dpi').value);
-  const engine = document.getElementById('ocr-engine-select').value;
+  let engine = document.getElementById('ocr-engine-select').value;
   
   if (!state.googleApiKey && engine === 'vision_correction') {
     toast('Vision Key required', 'error'); return;
@@ -1136,6 +1230,11 @@ document.getElementById('run-batch-ocr').addEventListener('click', async () => {
 
   try {
     for (const job of jobs) {
+      if (state.quotas.geminiCount >= 1500) {
+        toast('Gemini Quota finished for today. Stopping batch.', 'error');
+        break;
+      }
+      
       const startTime = Date.now();
       
       if (job.product.id !== currentProductId) {
@@ -1147,27 +1246,44 @@ document.getElementById('run-batch-ocr').addEventListener('click', async () => {
       }
       
       updateBatchProgress(done, jobs.length, job.product.name);
-      const { canvas, viewport, base64 } = await renderPageCanvas(currentPdfDoc, job.pageIdx + 1, dpi);
       
+      // PRE-CHECK FOR DUPLICATE LAYERS
+      const alreadyHasText = await pageHasText(currentPdfDoc, job.pageIdx + 1);
+      if (alreadyHasText) {
+        job.product.ocrByPage[job.pageIdx] = { text: '', words: [] }; // Mark as done to prevent loops, but it already has text burned in
+        done++;
+        continue;
+      }
+
+      const { canvas, viewport, base64 } = await renderPageCanvas(currentPdfDoc, job.pageIdx + 1, dpi);
       let res;
+      
       if (engine === 'vision_correction') {
-        res = await ocrPageWithGoogleVision(base64, state.googleApiKey);
-        res.canvasWidth = canvas.width;
-        res.canvasHeight = canvas.height;
         try {
-          res.words = await correctWithGemini(base64, res.words, state.geminiApiKey);
+          res = await ocrPageWithGoogleVision(base64, state.googleApiKey);
         } catch (e) {
-          console.warn('Correction fallback on page', job.pageIdx + 1, e);
+          if (e.message === "VISION_QUOTA") {
+            toast('Vision quota hit. Auto-switched to Tesseract.', 'error');
+            document.getElementById('ocr-engine-select').value = 'tesseract_correction';
+            engine = 'tesseract_correction';
+            res = await ocrPageWithTesseract(canvas);
+          } else throw e;
         }
-      } else if (engine === 'tesseract_correction') {
+      } else {
         res = await ocrPageWithTesseract(canvas);
-        res.canvasWidth = canvas.width;
-        res.canvasHeight = canvas.height;
-        try {
-          res.words = await correctWithGemini(base64, res.words, state.geminiApiKey);
-        } catch (e) {
-          console.warn('Correction fallback on page', job.pageIdx + 1, e);
+      }
+
+      res.canvasWidth = canvas.width;
+      res.canvasHeight = canvas.height;
+
+      try {
+        res.words = await correctWithGemini(base64, res.words, state.geminiApiKey);
+      } catch (e) {
+        if (e.message === "GEMINI_QUOTA") {
+          toast('Gemini Quota finished for today. Stopping batch.', 'error');
+          break;
         }
+        console.warn('Correction fallback on page', job.pageIdx + 1, e);
       }
 
       job.product.ocrByPage[job.pageIdx] = res;
@@ -1205,7 +1321,6 @@ document.getElementById('download-replace-all').addEventListener('click', async 
   let saved = 0, downloaded = 0;
   const total = productsWithOcr.length;
   
-  // Connection stability check
   const isFolderActive = await checkFolderConnection();
   if (folderHandle && !isFolderActive) {
     folderHandle = null;
@@ -1313,7 +1428,6 @@ document.getElementById('download-only-all').addEventListener('click', async () 
   toast(`Downloaded ${downloaded} searchable PDFs`, 'success');
 });
 
-
 // ---- SEARCH ----
 document.getElementById('search-input').addEventListener('input', doSearch);
 function doSearch() {
@@ -1368,6 +1482,7 @@ function refreshSearchMeta() {
 async function init() {
   await openDB();
   await loadApiKeys();
+  await loadQuotas();
   state.products = (await dbGetAll('products')) || [];
   updateProductsList();
   updateStorageStatus();
