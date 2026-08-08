@@ -160,7 +160,7 @@
     </svg>
   </div>
   <h1 id="app-title" title="Toggle API Keys">LineAssemblyHub</h1>
-  <span class="tag">v0.15</span>
+  <span class="tag">v0.16</span>
   <div class="status" id="storage-status" title="Browser local storage allocation">–</div>
   <button class="btn small" id="connect-folder-btn" style="background:#0f766e;color:#fff;border-color:#0f766e;">Connect month folder…</button>
 </header>
@@ -393,7 +393,7 @@ function toast(msg, type = '') {
   el.textContent = msg;
   el.className = 'show ' + type;
   clearTimeout(toast._t);
-  toast._t = setTimeout(() => { el.className = ''; }, 6000); // Extended display time to read errors
+  toast._t = setTimeout(() => { el.className = ''; }, 6000); 
 }
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
 async function readFileAsBytes(file) { return new Uint8Array(await file.arrayBuffer()); }
@@ -770,7 +770,15 @@ async function flattenPdfProduct(productId) {
     
     for (let i = 1; i <= oldPdfJsDoc.numPages; i++) {
       const page = await oldPdfJsDoc.getPage(i);
-      const viewport = page.getViewport({ scale: 400 / 72 }); // Render at high res
+      const unscaledViewport = page.getViewport({ scale: 1 });
+      
+      let scale = 400 / 72; 
+      const MAX_PIXELS = 4000;
+      if (unscaledViewport.width * scale > MAX_PIXELS || unscaledViewport.height * scale > MAX_PIXELS) {
+        scale = MAX_PIXELS / Math.max(unscaledViewport.width, unscaledViewport.height);
+      }
+      
+      const viewport = page.getViewport({ scale: scale });
       const canvas = document.createElement('canvas');
       canvas.width = viewport.width; canvas.height = viewport.height;
       const ctx = canvas.getContext('2d');
@@ -1083,13 +1091,27 @@ function hideBatchProgress() { document.getElementById('ocr-progress').classList
 
 async function renderPageCanvas(pdfDoc, pageNum, dpi) {
   const page = await pdfDoc.getPage(pageNum);
-  const viewport = page.getViewport({ scale: dpi / 72 });
+  const unscaledViewport = page.getViewport({ scale: 1 });
+  
+  let scale = dpi / 72;
+  const MAX_PIXELS = 4000; 
+  if (unscaledViewport.width * scale > MAX_PIXELS || unscaledViewport.height * scale > MAX_PIXELS) {
+    scale = MAX_PIXELS / Math.max(unscaledViewport.width, unscaledViewport.height);
+  }
+  
+  const viewport = page.getViewport({ scale: scale });
   const canvas = document.createElement('canvas');
   canvas.width = viewport.width; canvas.height = viewport.height;
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
   await page.render({ canvasContext: ctx, viewport }).promise;
-  return { canvas, viewport, base64: canvas.toDataURL('image/jpeg', 0.85).replace(/^data:image\/(png|jpeg);base64,/, "") };
+  
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+  const base64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : '';
+  
+  if (!base64) throw new Error("Browser memory limit exceeded: Could not render page image.");
+  
+  return { canvas, viewport, base64 };
 }
 
 // 2. Vision API - UPDATED ERROR CATCHING
