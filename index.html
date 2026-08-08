@@ -160,7 +160,7 @@
     </svg>
   </div>
   <h1 id="app-title" title="Toggle API Keys">LineAssemblyHub</h1>
-  <span class="tag">v0.14</span>
+  <span class="tag">v0.15</span>
   <div class="status" id="storage-status" title="Browser local storage allocation">–</div>
   <button class="btn small" id="connect-folder-btn" style="background:#0f766e;color:#fff;border-color:#0f766e;">Connect month folder…</button>
 </header>
@@ -393,7 +393,7 @@ function toast(msg, type = '') {
   el.textContent = msg;
   el.className = 'show ' + type;
   clearTimeout(toast._t);
-  toast._t = setTimeout(() => { el.className = ''; }, 3500);
+  toast._t = setTimeout(() => { el.className = ''; }, 6000); // Extended display time to read errors
 }
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
 async function readFileAsBytes(file) { return new Uint8Array(await file.arrayBuffer()); }
@@ -456,9 +456,7 @@ async function countExistingOcrLayers(bytes) {
   for(let i=1; i<=doc.numPages; i++){
     const page = await doc.getPage(i);
     const textContent = await page.getTextContent();
-    // If a page has more than 10 text objects, it already has an OCR layer burned in
     if(textContent.items.length > 10) {
-      // Create a dummy record so the UI knows it's already complete
       ocrMap[i-1] = { text: 'burned_in', words: [], preExisting: true };
     }
   }
@@ -539,7 +537,6 @@ async function renderThumbs() {
     canvasWrap.className = 'canvas-wrap';
     canvasWrap.appendChild(canvas);
     
-    // Manual Rotation Button
     const rotateBtn = document.createElement('button');
     rotateBtn.className = 'rotate-btn';
     rotateBtn.textContent = '↻ Rotate';
@@ -727,7 +724,6 @@ document.getElementById('import-existing-input').addEventListener('change', asyn
       const bytes = await readFileAsBytes(file);
       const doc = await pdfjsLib.getDocument({ data: bytes.slice() }).promise;
       
-      // Instantly track existing OCR layers so UI shows "X OCR'd" right away
       const ocrMap = await countExistingOcrLayers(bytes);
       
       const product = { id: uid(), name, pdfBytes: bytes, pageCount: doc.numPages, ocrByPage: ocrMap, lastUpdated: new Date().toISOString(), sourceFileName: file.name };
@@ -1096,16 +1092,24 @@ async function renderPageCanvas(pdfDoc, pageNum, dpi) {
   return { canvas, viewport, base64: canvas.toDataURL('image/jpeg', 0.85).replace(/^data:image\/(png|jpeg);base64,/, "") };
 }
 
-// 2. Vision API
+// 2. Vision API - UPDATED ERROR CATCHING
 async function ocrPageWithGoogleVision(base64Image, apiKey) {
   const payload = { requests: [{ image: { content: base64Image }, features: [{ type: "DOCUMENT_TEXT_DETECTION" }] }] };
   const response = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
   });
+  
   if (!response.ok) {
-    if(response.status === 403 || response.status === 429) throw new Error("VISION_QUOTA");
-    throw new Error(`Google Vision API returned ${response.status}`);
+    let exactError = `HTTP ${response.status}`;
+    try {
+      const errJson = await response.json();
+      exactError = errJson.error.message;
+    } catch(e) {}
+    
+    if(response.status === 403 || response.status === 429) throw new Error(`VISION_QUOTA: ${exactError}`);
+    throw new Error(`Google Vision API says: ${exactError}`);
   }
+  
   const resJson = await response.json();
   const res = resJson.responses[0];
   if (res.error) throw new Error(res.error.message);
@@ -1138,7 +1142,7 @@ async function ocrPageWithTesseract(canvas) {
   };
 }
 
-// 4. Gemini Correction
+// 4. Gemini Correction - UPDATED ERROR CATCHING
 async function correctWithGemini(base64Image, wordsArray, apiKey) {
   const payloadJson = wordsArray.map((w, idx) => ({ i: idx, t: w.text }));
   const payload = {
@@ -1155,8 +1159,14 @@ async function correctWithGemini(base64Image, wordsArray, apiKey) {
   });
 
   if (!response.ok) {
-    if(response.status === 429) throw new Error("GEMINI_QUOTA");
-    throw new Error(`Gemini API returned ${response.status}`);
+    let exactError = `HTTP ${response.status}`;
+    try {
+      const errJson = await response.json();
+      exactError = errJson.error.message;
+    } catch(e) {}
+    
+    if(response.status === 429) throw new Error(`GEMINI_QUOTA: ${exactError}`);
+    throw new Error(`Google Gemini API says: ${exactError}`);
   }
 
   const data = await response.json();
@@ -1215,8 +1225,8 @@ document.getElementById('run-batch-ocr').addEventListener('click', async () => {
         try {
           res = await ocrPageWithGoogleVision(base64, state.googleApiKey);
         } catch (e) {
-          if (e.message === "VISION_QUOTA") {
-            toast('Vision quota hit. Auto-switched to Tesseract.', 'error');
+          if (e.message.startsWith("VISION_QUOTA")) {
+            toast(`Vision quota hit: ${e.message}. Auto-switched to Tesseract.`, 'error');
             document.getElementById('ocr-engine-select').value = 'tesseract_correction';
             engine = 'tesseract_correction';
             res = await ocrPageWithTesseract(canvas);
@@ -1232,9 +1242,9 @@ document.getElementById('run-batch-ocr').addEventListener('click', async () => {
       try {
         res.words = await correctWithGemini(base64, res.words, state.geminiApiKey);
       } catch (e) {
-        if (e.message === "GEMINI_QUOTA") {
-          toast('Gemini Quota exhausted for today. Stopping batch.', 'error');
-          break; // Hard stop the batch, wait for tomorrow
+        if (e.message.startsWith("GEMINI_QUOTA")) {
+          toast(`Gemini Quota exhausted: ${e.message}`, 'error');
+          break; // Hard stop the batch
         }
         console.warn('Correction fallback on page', job.pageIdx + 1, e);
       }
