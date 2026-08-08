@@ -21,8 +21,6 @@
   header .tag { font-size: 11px; padding: 2px 8px; background: #0f766e; border-radius: 3px; font-weight: 500; }
   header .status { margin-left: auto; font-size: 12px; opacity: 0.8; }
 
-  #throttle-warning { background: #fef08a; color: #854d0e; padding: 8px 16px; font-size: 12px; font-weight: 500; text-align: center; border-bottom: 1px solid #fde047; }
-  
   #global-progress { display: none; padding: 10px 16px; background: #e0f2fe; border-bottom: 1px solid #bae6fd; font-size: 12px; }
   #global-progress .bar { background: #bae6fd; height: 6px; border-radius: 3px; margin-top: 6px; overflow: hidden; }
   #global-progress .bar-fill { background: #0284c7; height: 100%; width: 0%; transition: width 0.2s; }
@@ -64,8 +62,8 @@
   .thumb.assigned { border-color: #0f766e; box-shadow: 0 0 0 1px #0f766e; }
   .thumb .canvas-wrap { display: flex; justify-content: center; align-items: center; background: #f5f5f4; border: 1px solid #e7e5e4; overflow: hidden; position: relative; cursor: zoom-in; }
   .thumb canvas { width: 100%; height: auto; transition: transform 0.3s ease; }
-  .thumb .rotate-btn { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.6); color: #fff; border: none; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 12px; z-index: 10; }
-  .thumb .rotate-btn:hover { background: rgba(0,0,0,0.8); }
+  .thumb .rotate-btn { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.8); color: #fff; border: 1px solid #444; border-radius: 4px; padding: 6px 10px; cursor: pointer; font-size: 13px; font-weight: 600; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.3); transition: background 0.2s; }
+  .thumb .rotate-btn:hover { background: #000; }
   .thumb .page-num { font-size: 11px; color: #78716c; margin-top: 6px; text-align: center; font-weight: 500; }
   .thumb select { width: 100%; margin-top: 6px; font-size: 13px; padding: 6px; border: 1px solid #d6d3d1; border-radius: 3px; font-weight: 500; }
 
@@ -95,7 +93,6 @@
   .scope-radio label { display: flex; gap: 4px; align-items: center; cursor: pointer; }
   
   #key-setup-box { background: #f0fdf4; border-bottom: 1px solid #bbf7d0; display: none; }
-  #quota-display { margin-left: auto; font-size: 11px; font-weight: 600; color: #1e3a8a; background: #bae6fd; padding: 4px 10px; border-radius: 4px; border: 1px solid #7dd3fc; }
   
   #ocr-progress { padding: 10px 16px; background: #fef3c7; border-bottom: 1px solid #fde68a; font-size: 12px; display: none; }
   #ocr-progress.active { display: block; }
@@ -163,12 +160,10 @@
     </svg>
   </div>
   <h1 id="app-title" title="Toggle API Keys">LineAssemblyHub</h1>
-  <span class="tag">v0.13</span>
+  <span class="tag">v0.14</span>
   <div class="status" id="storage-status" title="Browser local storage allocation">–</div>
   <button class="btn small" id="connect-folder-btn" style="background:#0f766e;color:#fff;border-color:#0f766e;">Connect month folder…</button>
 </header>
-
-<div id="throttle-warning">⚠️ Note: Keep this tab open in its own separate window. Browsers automatically pause background tabs, which will halt OCR processing.</div>
 
 <div id="global-progress">
   <div id="global-progress-text">–</div>
@@ -205,7 +200,7 @@
         <div id="route-dropzone">
           <p><strong>Drop today's combined scan PDF here</strong></p>
           <p class="hint">or click to browse</p>
-          <p class="hint" style="margin-top: 14px;">"Mixing Batch" pages are automatically rotated horizontal.</p>
+          <p class="hint" style="margin-top: 14px;">Blank pages are automatically skipped during merge.</p>
         </div>
         <input type="file" id="scan-input" accept="application/pdf" class="hidden">
         <div id="thumbs"></div>
@@ -259,7 +254,6 @@
           <option value="400" selected>400</option>
         </select>
       </div>
-      <div id="quota-display">Quotas loading...</div>
     </div>
 
     <div class="config-box">
@@ -319,13 +313,7 @@ const state = {
   products: [],
   scan: null,
   googleApiKey: '',
-  geminiApiKey: '',
-  quotas: {
-    date: new Date().toDateString(),
-    geminiCount: 0,
-    visionMonth: new Date().getMonth(),
-    visionCount: 0
-  }
+  geminiApiKey: ''
 };
 
 // ---- IndexedDB ----
@@ -365,40 +353,6 @@ function dbDelete(store, key) {
     const tx = db.transaction(store, 'readwrite').objectStore(store).delete(key);
     tx.onsuccess = () => res(); tx.onerror = () => rej(tx.error);
   });
-}
-
-// ---- Quota System ----
-async function loadQuotas() {
-  try {
-    const qRes = await dbGet('settings', 'quotas');
-    if (qRes && qRes.value) {
-      const q = qRes.value;
-      const today = new Date().toDateString();
-      const thisMonth = new Date().getMonth();
-      
-      if (q.date !== today) { q.geminiCount = 0; q.date = today; }
-      if (q.visionMonth !== thisMonth) { q.visionCount = 0; q.visionMonth = thisMonth; }
-      
-      state.quotas = q;
-    }
-  } catch(e) {}
-  updateQuotaDisplay();
-}
-
-async function saveQuotas() {
-  await dbPut('settings', { key: 'quotas', value: state.quotas });
-  updateQuotaDisplay();
-}
-
-function updateQuotaDisplay() {
-  const geminiRemaining = Math.max(0, 1500 - state.quotas.geminiCount);
-  const visionRemaining = Math.max(0, 1000 - state.quotas.visionCount);
-  document.getElementById('quota-display').innerHTML = `Remaining Quotas &rarr; Gemini: <b>${geminiRemaining}</b>/day | Vision: <b>${visionRemaining}</b>/mo`;
-  
-  if (visionRemaining <= 0 && document.getElementById('ocr-engine-select').value === 'vision_correction') {
-    document.getElementById('ocr-engine-select').value = 'tesseract_correction';
-    toast('Vision quota hit. Auto-switched to Tesseract.', 'error');
-  }
 }
 
 // ---- API Key Management ----
@@ -494,6 +448,22 @@ function updateGlobalProgress(done, total, label) {
   document.getElementById('global-progress-bar').style.width = ((done/total)*100) + '%';
 }
 function hideGlobalProgress() { document.getElementById('global-progress').style.display = 'none'; }
+
+// NEW: Scan existing files for embedded OCR layers during import
+async function countExistingOcrLayers(bytes) {
+  const doc = await pdfjsLib.getDocument({ data: bytes.slice() }).promise;
+  const ocrMap = {};
+  for(let i=1; i<=doc.numPages; i++){
+    const page = await doc.getPage(i);
+    const textContent = await page.getTextContent();
+    // If a page has more than 10 text objects, it already has an OCR layer burned in
+    if(textContent.items.length > 10) {
+      // Create a dummy record so the UI knows it's already complete
+      ocrMap[i-1] = { text: 'burned_in', words: [], preExisting: true };
+    }
+  }
+  return ocrMap;
+}
 
 // ---- Tabs ----
 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -655,6 +625,18 @@ function updateMergeButton() {
   document.getElementById('merge-btn').disabled = !anyAssigned;
 }
 
+function showZoom(sourceCanvas) {
+  const overlay = document.getElementById('zoom-overlay');
+  const target = document.getElementById('zoom-canvas');
+  target.width = sourceCanvas.width;
+  target.height = sourceCanvas.height;
+  target.getContext('2d').drawImage(sourceCanvas, 0, 0);
+  overlay.classList.add('show');
+}
+document.getElementById('zoom-overlay').addEventListener('click', () => {
+  document.getElementById('zoom-overlay').classList.remove('show');
+});
+
 // Product Management
 document.getElementById('show-add-product').addEventListener('click', () => {
   document.getElementById('add-product-form').classList.add('active');
@@ -670,16 +652,18 @@ document.getElementById('save-product').addEventListener('click', async () => {
   if (!name) { toast('Product name required', 'error'); return; }
   const file = document.getElementById('new-product-file').files[0];
   let pdfBytes, pageCount = 0, sourceFileName;
+  let ocrMap = {};
   if (file) {
     pdfBytes = await readFileAsBytes(file);
     const doc = await pdfjsLib.getDocument({ data: pdfBytes.slice() }).promise;
     pageCount = doc.numPages;
     sourceFileName = file.name;
+    ocrMap = await countExistingOcrLayers(pdfBytes);
   } else {
     const emptyDoc = await PDFLib.PDFDocument.create();
     pdfBytes = await emptyDoc.save();
   }
-  const product = { id: uid(), name, pdfBytes, pageCount, ocrByPage: {}, lastUpdated: new Date().toISOString(), sourceFileName };
+  const product = { id: uid(), name, pdfBytes, pageCount, ocrByPage: ocrMap, lastUpdated: new Date().toISOString(), sourceFileName };
   state.products.push(product);
   await dbPut('products', product);
   document.getElementById('add-product-form').classList.remove('active');
@@ -742,7 +726,11 @@ document.getElementById('import-existing-input').addEventListener('change', asyn
       if (state.products.some(p => p.name === name)) { skipped++; continue; }
       const bytes = await readFileAsBytes(file);
       const doc = await pdfjsLib.getDocument({ data: bytes.slice() }).promise;
-      const product = { id: uid(), name, pdfBytes: bytes, pageCount: doc.numPages, ocrByPage: {}, lastUpdated: new Date().toISOString(), sourceFileName: file.name };
+      
+      // Instantly track existing OCR layers so UI shows "X OCR'd" right away
+      const ocrMap = await countExistingOcrLayers(bytes);
+      
+      const product = { id: uid(), name, pdfBytes: bytes, pageCount: doc.numPages, ocrByPage: ocrMap, lastUpdated: new Date().toISOString(), sourceFileName: file.name };
       state.products.push(product);
       await dbPut('products', product);
       added++;
@@ -917,8 +905,6 @@ document.getElementById('merge-btn').addEventListener('click', async () => {
     const oldProductDoc = await PDFLib.PDFDocument.load(product.pdfBytes.slice());
     const scanDoc = await PDFLib.PDFDocument.load(state.scan.pdfBytes.slice());
     const newProductDoc = await PDFLib.PDFDocument.create();
-    const newOcrByPage = {};
-    let newIdx = 0;
 
     if (product.pageCount > 0) {
       const oldPdfJsDoc = await pdfjsLib.getDocument({ data: product.pdfBytes.slice() }).promise;
@@ -927,36 +913,23 @@ document.getElementById('merge-btn').addEventListener('click', async () => {
         if (!blank) {
           const [copiedPage] = await newProductDoc.copyPages(oldProductDoc, [i]);
           newProductDoc.addPage(copiedPage);
-          if (product.ocrByPage && product.ocrByPage[i]) {
-            newOcrByPage[newIdx] = product.ocrByPage[i];
-          }
-          newIdx++;
         } else {
           droppedBlankPages++;
         }
       }
     }
 
-    // Is it a Mixing Batch? Auto-rotate landscape
-    const isMixingBatch = product.name.toLowerCase().includes('mixing batch');
-
     for (const pgObj of byProduct[productId]) {
       const blank = await isPageBlank(state.scan.pdfDoc, pgObj.index + 1);
       if (!blank) {
         const [copiedPage] = await newProductDoc.copyPages(scanDoc, [pgObj.index]);
         
-        let rotation = pgObj.rotation || 0;
-        if (isMixingBatch && rotation === 0) {
-          rotation = 90; // Auto-rotate horizontal
-        }
-        
-        if (rotation !== 0) {
+        if (pgObj.rotation !== 0) {
           const currentRotation = copiedPage.getRotation().angle;
-          copiedPage.setRotation(PDFLib.degrees(currentRotation + rotation));
+          copiedPage.setRotation(PDFLib.degrees(currentRotation + pgObj.rotation));
         }
 
         newProductDoc.addPage(copiedPage);
-        newIdx++;
         mergedPages++;
       } else {
         droppedBlankPages++;
@@ -965,7 +938,10 @@ document.getElementById('merge-btn').addEventListener('click', async () => {
 
     product.pdfBytes = await newProductDoc.save();
     product.pageCount = newProductDoc.getPageCount();
-    product.ocrByPage = newOcrByPage; 
+    
+    // Recalculate OCR status of the newly merged file to guarantee accuracy
+    product.ocrByPage = await countExistingOcrLayers(product.pdfBytes); 
+    
     product.lastUpdated = new Date().toISOString();
     await dbPut('products', product);
   }
@@ -1025,14 +1001,19 @@ async function loadProductsFromFolder() {
       const file = await handle.getFile();
       const bytes = new Uint8Array(await file.arrayBuffer());
       const doc = await pdfjsLib.getDocument({ data: bytes.slice() }).promise;
+      
+      const ocrMap = await countExistingOcrLayers(bytes);
+      
       const productName = name.replace(/\.pdf$/i, '').trim();
       const existing = state.products.find(p => p.name === productName);
+      
       if (existing) {
         existing.pdfBytes = bytes; existing.pageCount = doc.numPages;
+        existing.ocrByPage = ocrMap;
         existing.lastUpdated = new Date().toISOString(); existing.sourceFileName = name;
         await dbPut('products', existing); updated++;
       } else {
-        const product = { id: uid(), name: productName, pdfBytes: bytes, pageCount: doc.numPages, ocrByPage: {}, lastUpdated: new Date().toISOString(), sourceFileName: name };
+        const product = { id: uid(), name: productName, pdfBytes: bytes, pageCount: doc.numPages, ocrByPage: ocrMap, lastUpdated: new Date().toISOString(), sourceFileName: name };
         state.products.push(product); await dbPut('products', product); loaded++;
       }
     } catch(err) { console.error(err); }
@@ -1115,13 +1096,6 @@ async function renderPageCanvas(pdfDoc, pageNum, dpi) {
   return { canvas, viewport, base64: canvas.toDataURL('image/jpeg', 0.85).replace(/^data:image\/(png|jpeg);base64,/, "") };
 }
 
-// 1. Pre-Check for Duplicate Layers
-async function pageHasText(pdfDoc, pageNum) {
-  const page = await pdfDoc.getPage(pageNum);
-  const textContent = await page.getTextContent();
-  return textContent.items.length > 5; // If it has more than 5 elements, it already has an OCR layer
-}
-
 // 2. Vision API
 async function ocrPageWithGoogleVision(base64Image, apiKey) {
   const payload = { requests: [{ image: { content: base64Image }, features: [{ type: "DOCUMENT_TEXT_DETECTION" }] }] };
@@ -1129,15 +1103,12 @@ async function ocrPageWithGoogleVision(base64Image, apiKey) {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
   });
   if (!response.ok) {
-    if(response.status === 403) throw new Error("VISION_QUOTA");
+    if(response.status === 403 || response.status === 429) throw new Error("VISION_QUOTA");
     throw new Error(`Google Vision API returned ${response.status}`);
   }
   const resJson = await response.json();
   const res = resJson.responses[0];
   if (res.error) throw new Error(res.error.message);
-  
-  state.quotas.visionCount += 1;
-  saveQuotas();
 
   const textAnnotations = res.textAnnotations || [];
   const words = [];
@@ -1169,8 +1140,6 @@ async function ocrPageWithTesseract(canvas) {
 
 // 4. Gemini Correction
 async function correctWithGemini(base64Image, wordsArray, apiKey) {
-  if (state.quotas.geminiCount >= 1500) throw new Error("GEMINI_QUOTA");
-
   const payloadJson = wordsArray.map((w, idx) => ({ i: idx, t: w.text }));
   const payload = {
     contents: [{ parts: [
@@ -1189,9 +1158,6 @@ async function correctWithGemini(base64Image, wordsArray, apiKey) {
     if(response.status === 429) throw new Error("GEMINI_QUOTA");
     throw new Error(`Gemini API returned ${response.status}`);
   }
-  
-  state.quotas.geminiCount += 1;
-  saveQuotas();
 
   const data = await response.json();
   if (data.candidates && data.candidates[0].content.parts[0].text) {
@@ -1230,11 +1196,6 @@ document.getElementById('run-batch-ocr').addEventListener('click', async () => {
 
   try {
     for (const job of jobs) {
-      if (state.quotas.geminiCount >= 1500) {
-        toast('Gemini Quota finished for today. Stopping batch.', 'error');
-        break;
-      }
-      
       const startTime = Date.now();
       
       if (job.product.id !== currentProductId) {
@@ -1247,14 +1208,6 @@ document.getElementById('run-batch-ocr').addEventListener('click', async () => {
       
       updateBatchProgress(done, jobs.length, job.product.name);
       
-      // PRE-CHECK FOR DUPLICATE LAYERS
-      const alreadyHasText = await pageHasText(currentPdfDoc, job.pageIdx + 1);
-      if (alreadyHasText) {
-        job.product.ocrByPage[job.pageIdx] = { text: '', words: [] }; // Mark as done to prevent loops, but it already has text burned in
-        done++;
-        continue;
-      }
-
       const { canvas, viewport, base64 } = await renderPageCanvas(currentPdfDoc, job.pageIdx + 1, dpi);
       let res;
       
@@ -1280,8 +1233,8 @@ document.getElementById('run-batch-ocr').addEventListener('click', async () => {
         res.words = await correctWithGemini(base64, res.words, state.geminiApiKey);
       } catch (e) {
         if (e.message === "GEMINI_QUOTA") {
-          toast('Gemini Quota finished for today. Stopping batch.', 'error');
-          break;
+          toast('Gemini Quota exhausted for today. Stopping batch.', 'error');
+          break; // Hard stop the batch, wait for tomorrow
         }
         console.warn('Correction fallback on page', job.pageIdx + 1, e);
       }
@@ -1338,7 +1291,7 @@ document.getElementById('download-replace-all').addEventListener('click', async 
 
     for (let i = 0; i < pages.length; i++) {
       const ocr = product.ocrByPage[i];
-      if (!ocr || !ocr.words) continue;
+      if (!ocr || !ocr.words || ocr.preExisting) continue;
       const page = pages[i];
       const { width: pageW, height: pageH } = page.getSize();
 
@@ -1398,7 +1351,7 @@ document.getElementById('download-only-all').addEventListener('click', async () 
 
     for (let i = 0; i < pages.length; i++) {
       const ocr = product.ocrByPage[i];
-      if (!ocr || !ocr.words) continue;
+      if (!ocr || !ocr.words || ocr.preExisting) continue;
       const page = pages[i];
       const { width: pageW, height: pageH } = page.getSize();
 
@@ -1482,7 +1435,6 @@ function refreshSearchMeta() {
 async function init() {
   await openDB();
   await loadApiKeys();
-  await loadQuotas();
   state.products = (await dbGetAll('products')) || [];
   updateProductsList();
   updateStorageStatus();
