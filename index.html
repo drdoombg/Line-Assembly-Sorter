@@ -1549,9 +1549,11 @@ async function testVisionKey(apiKey) {
 }
 
 function checkCorrectionKeyFormat(apiKey) {
-  // AIzaSy keys are always 39 chars starting with AIzaSy
   if (!apiKey) return 'missing';
-  if (/^AIzaSy[A-Za-z0-9_-]{32}$/.test(apiKey.trim())) return 'saved';
+  const k = apiKey.trim();
+  // Google API keys: AIzaSy... (39 chars) is the common form, but accept anything
+  // that looks like a plausible key: 20+ chars, no spaces
+  if (k.length >= 20 && !/\s/.test(k)) return 'saved';
   return 'bad';
 }
 
