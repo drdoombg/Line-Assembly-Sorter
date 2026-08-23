@@ -160,7 +160,7 @@
     </svg>
   </div>
   <h1 id="app-title" title="Toggle API Keys">LineAssemblyHub</h1>
-  <span class="tag">v0.16</span>
+  <span class="tag">v0.17</span>
   <div class="status" id="storage-status" title="Browser local storage allocation">–</div>
   <button class="btn small" id="connect-folder-btn" style="background:#0f766e;color:#fff;border-color:#0f766e;">Connect month folder…</button>
 </header>
@@ -173,6 +173,7 @@
 <nav class="tabs">
   <button class="tab-btn active" data-tab="route">Route &amp; Merge</button>
   <button class="tab-btn" data-tab="ocr">Convert to OCR</button>
+  <button class="tab-btn" data-tab="mixing">Mixing Batch Records</button>
   <button class="tab-btn" data-tab="search">Search</button>
 </nav>
 
@@ -251,7 +252,8 @@
       <div>
         <label>DPI:</label>
         <select id="ocr-dpi">
-          <option value="400" selected>400</option>
+          <option value="300" selected>300 (recommended)</option>
+          <option value="400">400 (high quality, slower)</option>
         </select>
       </div>
     </div>
@@ -269,6 +271,31 @@
 
     <div id="ocr-summary">–</div>
     <div id="ocr-product-list"></div>
+  </section>
+
+  <!-- MIXING BATCH RECORDS TAB -->
+  <section class="tab-content" id="tab-mixing" style="flex-direction:column;overflow-y:auto;">
+    <div class="panel-header" style="flex-shrink:0;">
+      <h2>Mixing Batch Records</h2>
+      <div class="actions">
+        <button class="btn small" id="mixing-clear-btn">Clear</button>
+        <button class="btn small primary" id="mixing-ocr-btn" disabled>Run OCR on All</button>
+        <button class="btn small" id="mixing-download-btn" disabled>Download Searchable PDF</button>
+      </div>
+    </div>
+    <div id="mixing-dropzone-area" style="padding:12px;flex-shrink:0;">
+      <div id="mixing-dropzone" style="border:2px dashed #a8a29e;border-radius:6px;padding:40px 20px;text-align:center;color:#78716c;background:#fff;cursor:pointer;">
+        <p><strong>Drop today's Mixing Batch Records PDF here</strong></p>
+        <p style="font-size:12px;margin-top:6px;opacity:0.7;">All pages will be auto-rotated to landscape. Use rotate buttons to fix any that need manual correction.</p>
+      </div>
+      <input type="file" id="mixing-input" accept="application/pdf" style="display:none;">
+    </div>
+    <div id="mixing-info-bar" style="display:none;padding:6px 14px;font-size:12px;color:#57534e;background:#f0f9ff;border-top:1px solid #bae6fd;border-bottom:1px solid #bae6fd;flex-shrink:0;"></div>
+    <div id="mixing-progress" style="display:none;padding:10px 16px;background:#fef3c7;border-bottom:1px solid #fde68a;font-size:12px;flex-shrink:0;">
+      <div id="mixing-progress-text">–</div>
+      <div style="background:#fde68a;height:6px;border-radius:3px;margin-top:6px;overflow:hidden;"><div id="mixing-progress-bar" style="background:#d97706;height:100%;width:0%;transition:width 0.2s;"></div></div>
+    </div>
+    <div id="mixing-thumbs" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;padding:12px;overflow-y:auto;flex:1;"></div>
   </section>
 
   <section class="tab-content" id="tab-search">
@@ -472,6 +499,10 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
     if (btn.dataset.tab === 'ocr') refreshOcrTab();
     if (btn.dataset.tab === 'search') refreshSearchMeta();
+    if (btn.dataset.tab === 'mixing') {
+      // nothing to refresh dynamically, but ensure dropzone visible if no pdf loaded
+      if (!mixingState.pdfDoc) mixingDropzone.style.display = 'block';
+    }
   });
 });
 
@@ -787,8 +818,11 @@ async function flattenPdfProduct(productId) {
       
       const imgData = canvas.toDataURL('image/jpeg', 0.85);
       const image = await newDoc.embedJpg(imgData);
-      const newPage = newDoc.addPage([viewport.width, viewport.height]);
-      newPage.drawImage(image, { x: 0, y: 0, width: viewport.width, height: viewport.height });
+      // Use original PDF point dimensions (not pixel dimensions) to preserve page size
+      const origW = unscaledViewport.width;
+      const origH = unscaledViewport.height;
+      const newPage = newDoc.addPage([origW, origH]);
+      newPage.drawImage(image, { x: 0, y: 0, width: origW, height: origH });
     }
     
     product.pdfBytes = await newDoc.save();
@@ -901,8 +935,11 @@ document.getElementById('merge-btn').addEventListener('click', async () => {
 
   let mergedPages = 0;
   let droppedBlankPages = 0;
+  const productIds = Object.keys(byProduct);
+  let mergeCount = 0;
 
-  for (const productId of Object.keys(byProduct)) {
+  for (const productId of productIds) {
+    updateGlobalProgress(mergeCount, productIds.length, `Merging product ${mergeCount + 1} of ${productIds.length}…`);
     const product = state.products.find(p => p.id === productId);
     if (!product) continue;
 
@@ -948,7 +985,12 @@ document.getElementById('merge-btn').addEventListener('click', async () => {
     
     product.lastUpdated = new Date().toISOString();
     await dbPut('products', product);
+    mergeCount++;
+    updateGlobalProgress(mergeCount, productIds.length, `Merged ${product.name}`);
   }
+
+  updateGlobalProgress(productIds.length, productIds.length, 'Merge complete');
+  setTimeout(hideGlobalProgress, 1500);
 
   const dropNotice = droppedBlankPages > 0 ? ` (Dropped ${droppedBlankPages} blank page${droppedBlankPages > 1 ? 's' : ''} globally)` : '';
   toast(`Merged ${mergedPages} pages into ${Object.keys(byProduct).length} products${dropNotice}.`, 'success');
@@ -1411,6 +1453,252 @@ document.getElementById('download-only-all').addEventListener('click', async () 
   updateGlobalProgress(count, total, 'Downloads complete');
   setTimeout(hideGlobalProgress, 1500);
   toast(`Downloaded ${downloaded} searchable PDFs`, 'success');
+});
+
+// ---- MIXING BATCH RECORDS ----
+const mixingState = {
+  pdfDoc: null,
+  pdfBytes: null,
+  pages: [],   // [{index, rotation, ocrResult}]
+  filename: ''
+};
+
+const mixingDropzone = document.getElementById('mixing-dropzone');
+const mixingInput = document.getElementById('mixing-input');
+
+mixingDropzone.addEventListener('click', () => mixingInput.click());
+mixingDropzone.addEventListener('dragover', (e) => { e.preventDefault(); mixingDropzone.style.background='#ecfeff'; mixingDropzone.style.borderColor='#0f766e'; });
+mixingDropzone.addEventListener('dragleave', () => { mixingDropzone.style.background=''; mixingDropzone.style.borderColor=''; });
+mixingDropzone.addEventListener('drop', (e) => {
+  e.preventDefault(); mixingDropzone.style.background=''; mixingDropzone.style.borderColor='';
+  const f = e.dataTransfer.files[0];
+  if (f && f.type === 'application/pdf') loadMixingPdf(f);
+});
+mixingInput.addEventListener('change', (e) => { if (e.target.files[0]) loadMixingPdf(e.target.files[0]); });
+
+document.getElementById('mixing-clear-btn').addEventListener('click', () => {
+  mixingState.pdfDoc = null; mixingState.pdfBytes = null; mixingState.pages = []; mixingState.filename = '';
+  document.getElementById('mixing-thumbs').innerHTML = '';
+  document.getElementById('mixing-dropzone-area').querySelector('#mixing-dropzone').style.display = 'block';
+  document.getElementById('mixing-info-bar').style.display = 'none';
+  document.getElementById('mixing-ocr-btn').disabled = true;
+  document.getElementById('mixing-download-btn').disabled = true;
+});
+
+async function loadMixingPdf(file) {
+  toast('Loading mixing records…');
+  try {
+    const bytes = await readFileAsBytes(file);
+    const pdfDoc = await pdfjsLib.getDocument({ data: bytes.slice() }).promise;
+    mixingState.pdfBytes = bytes;
+    mixingState.pdfDoc = pdfDoc;
+    mixingState.filename = file.name;
+    mixingState.pages = [];
+
+    // Auto-detect rotation needed per page: if portrait → rotate 90° to landscape
+    for (let i = 1; i <= pdfDoc.numPages; i++) {
+      const page = await pdfDoc.getPage(i);
+      const vp = page.getViewport({ scale: 1 });
+      // If page is portrait (height > width), we'll rotate 90° to make landscape
+      const autoRotation = vp.height > vp.width ? 90 : 0;
+      mixingState.pages.push({ index: i - 1, rotation: autoRotation, ocrResult: null });
+    }
+
+    mixingDropzone.style.display = 'none';
+    document.getElementById('mixing-info-bar').style.display = 'block';
+    document.getElementById('mixing-info-bar').textContent = `${file.name} · ${pdfDoc.numPages} pages · Auto-rotated to landscape`;
+    document.getElementById('mixing-ocr-btn').disabled = false;
+    await renderMixingThumbs();
+    toast(`Loaded ${pdfDoc.numPages} mixing batch pages`, 'success');
+  } catch(err) {
+    console.error(err);
+    toast('Failed to load: ' + err.message, 'error');
+  }
+}
+
+async function renderMixingThumbs() {
+  const thumbsEl = document.getElementById('mixing-thumbs');
+  thumbsEl.innerHTML = '';
+  const pdfDoc = mixingState.pdfDoc;
+
+  for (let i = 0; i < mixingState.pages.length; i++) {
+    const pg = mixingState.pages[i];
+    const page = await pdfDoc.getPage(pg.index + 1);
+    const vp = page.getViewport({ scale: THUMB_DPI / 72 });
+
+    const canvas = document.createElement('canvas');
+    canvas.width = vp.width;
+    canvas.height = vp.height;
+    const ctx = canvas.getContext('2d');
+    await page.render({ canvasContext: ctx, viewport: vp }).promise;
+
+    const div = document.createElement('div');
+    div.className = 'thumb';
+    div.dataset.mixingIdx = i;
+
+    const canvasWrap = document.createElement('div');
+    canvasWrap.className = 'canvas-wrap';
+    // Apply initial rotation visually
+    canvas.style.transform = `rotate(${pg.rotation}deg)`;
+    canvasWrap.appendChild(canvas);
+
+    const rotateBtn = document.createElement('button');
+    rotateBtn.className = 'rotate-btn';
+    rotateBtn.textContent = '↻ Rotate';
+    rotateBtn.onclick = (e) => {
+      e.stopPropagation();
+      mixingState.pages[i].rotation = (mixingState.pages[i].rotation + 90) % 360;
+      canvas.style.transform = `rotate(${mixingState.pages[i].rotation}deg)`;
+    };
+    canvasWrap.appendChild(rotateBtn);
+
+    // Click to zoom
+    canvasWrap.addEventListener('click', () => showZoom(canvas));
+
+    div.appendChild(canvasWrap);
+
+    const pageLabel = document.createElement('div');
+    pageLabel.className = 'page-num';
+    pageLabel.id = `mixing-page-label-${i}`;
+    pageLabel.textContent = `Page ${i + 1} — Landscape`;
+    div.appendChild(pageLabel);
+
+    thumbsEl.appendChild(div);
+  }
+}
+
+// Mixing OCR button
+document.getElementById('mixing-ocr-btn').addEventListener('click', async () => {
+  if (!mixingState.pdfDoc) return;
+  if (!state.googleApiKey && !state.geminiApiKey) { toast('Set API keys first (click logo)', 'error'); return; }
+
+  const dpi = parseInt(document.getElementById('ocr-dpi').value);
+  const total = mixingState.pages.length;
+  let done = 0;
+
+  document.getElementById('mixing-progress').style.display = 'block';
+  document.getElementById('mixing-download-btn').disabled = true;
+
+  try {
+    for (let i = 0; i < mixingState.pages.length; i++) {
+      const pg = mixingState.pages[i];
+      const startTime = Date.now();
+
+      document.getElementById('mixing-progress-text').textContent = `OCR page ${i + 1} of ${total}…`;
+      document.getElementById('mixing-progress-bar').style.width = ((done / total) * 100) + '%';
+
+      // Render page respecting its rotation
+      const page = await mixingState.pdfDoc.getPage(pg.index + 1);
+      const unscaledVp = page.getViewport({ scale: 1 });
+      let scale = dpi / 72;
+      const MAX_PIXELS = 4000;
+      if (unscaledVp.width * scale > MAX_PIXELS || unscaledVp.height * scale > MAX_PIXELS) {
+        scale = MAX_PIXELS / Math.max(unscaledVp.width, unscaledVp.height);
+      }
+      // Apply rotation in render
+      const rotRad = (pg.rotation * Math.PI) / 180;
+      const vp = page.getViewport({ scale, rotation: pg.rotation });
+      const canvas = document.createElement('canvas');
+      canvas.width = vp.width; canvas.height = vp.height;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      await page.render({ canvasContext: ctx, viewport: vp }).promise;
+
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      const base64 = dataUrl.split(',')[1];
+
+      let res;
+      if (state.googleApiKey) {
+        try { res = await ocrPageWithGoogleVision(base64, state.googleApiKey); }
+        catch(e) { res = await ocrPageWithTesseract(canvas); }
+      } else {
+        res = await ocrPageWithTesseract(canvas);
+      }
+      res.canvasWidth = canvas.width; res.canvasHeight = canvas.height;
+
+      if (state.geminiApiKey && res.words && res.words.length > 0) {
+        try { res.words = await correctWithGemini(base64, res.words, state.geminiApiKey); } catch(e) {}
+      }
+
+      mixingState.pages[i].ocrResult = res;
+
+      // Update page label with status
+      const label = document.getElementById(`mixing-page-label-${i}`);
+      if (label) label.textContent = `Page ${i + 1} — ✓ OCR done`;
+
+      done++;
+      const elapsed = Date.now() - startTime;
+      if (elapsed < 4200) await new Promise(r => setTimeout(r, 4200 - elapsed));
+    }
+
+    document.getElementById('mixing-progress-bar').style.width = '100%';
+    document.getElementById('mixing-progress-text').textContent = `OCR complete — ${done} pages`;
+    setTimeout(() => { document.getElementById('mixing-progress').style.display = 'none'; }, 2000);
+    document.getElementById('mixing-download-btn').disabled = false;
+    toast(`Mixing OCR complete: ${done} pages`, 'success');
+  } catch(err) {
+    console.error(err);
+    document.getElementById('mixing-progress').style.display = 'none';
+    toast('OCR failed: ' + err.message, 'error');
+  }
+});
+
+// Mixing Download button — produce rotated landscape PDF with invisible OCR text layer
+document.getElementById('mixing-download-btn').addEventListener('click', async () => {
+  if (!mixingState.pdfDoc || !mixingState.pdfBytes) return;
+
+  toast('Building searchable PDF…');
+  updateGlobalProgress(0, 1, 'Building Mixing Batch PDF…');
+
+  try {
+    const srcDoc = await PDFLib.PDFDocument.load(mixingState.pdfBytes.slice());
+    const newDoc = await PDFLib.PDFDocument.create();
+    const helv = await newDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+
+    for (let i = 0; i < mixingState.pages.length; i++) {
+      const pg = mixingState.pages[i];
+      updateGlobalProgress(i, mixingState.pages.length, `Building page ${i + 1}…`);
+
+      // Copy page from source
+      const [copied] = await newDoc.copyPages(srcDoc, [pg.index]);
+
+      // Apply rotation: we store the visual rotation as PDF rotation
+      if (pg.rotation !== 0) {
+        const currentRot = copied.getRotation().angle;
+        copied.setRotation(PDFLib.degrees((currentRot + pg.rotation) % 360));
+      }
+
+      newDoc.addPage(copied);
+
+      // Embed invisible OCR text if available
+      if (pg.ocrResult && pg.ocrResult.words) {
+        const addedPage = newDoc.getPages()[i];
+        const { width: pageW, height: pageH } = addedPage.getSize();
+        const ocr = pg.ocrResult;
+        for (const w of ocr.words) {
+          if (!w.text || !w.text.trim() || !w.bbox) continue;
+          const scaleX = pageW / ocr.canvasWidth;
+          const scaleY = pageH / ocr.canvasHeight;
+          const x = w.bbox.x0 * scaleX;
+          const wordH = (w.bbox.y1 - w.bbox.y0) * scaleY;
+          const y = pageH - (w.bbox.y0 * scaleY) - wordH;
+          const fontSize = Math.max(4, wordH * 0.9);
+          try { addedPage.drawText(w.text, { x, y, size: fontSize, font: helv, color: PDFLib.rgb(0,0,0), opacity: 0 }); } catch(_) {}
+        }
+      }
+    }
+
+    const outBytes = await newDoc.save();
+    const outName = mixingState.filename.replace(/\.pdf$/i, '') + '_searchable.pdf';
+    downloadPdf(outBytes, outName);
+    updateGlobalProgress(mixingState.pages.length, mixingState.pages.length, 'Download ready');
+    setTimeout(hideGlobalProgress, 1500);
+    toast('Downloaded: ' + outName, 'success');
+  } catch(err) {
+    console.error(err);
+    hideGlobalProgress();
+    toast('Download failed: ' + err.message, 'error');
+  }
 });
 
 // ---- SEARCH ----
