@@ -128,6 +128,15 @@
   #toast.error { background: #991b1b; }
   #toast.success { background: #166534; }
 
+  .repair-file { padding:10px 12px;border:1px solid #e7e5e4;border-radius:4px;margin-bottom:6px;background:#fff;display:flex;align-items:center;gap:10px;flex-wrap:wrap; }
+  .repair-file .rf-name { font-weight:600;font-size:13px;flex:1; }
+  .repair-file .rf-status { font-size:11px;padding:3px 8px;border-radius:3px;white-space:nowrap; }
+  .rf-status.pending { background:#e7e5e4;color:#57534e; }
+  .rf-status.analysing { background:#fef3c7;color:#92400e; }
+  .rf-status.bad { background:#fee2e2;color:#b91c1c; }
+  .rf-status.ok { background:#dcfce7;color:#166534; }
+  .rf-status.done { background:#dcfce7;color:#166534; }
+  .repair-file .rf-detail { font-size:11px;color:#78716c;width:100%; }
   .empty { text-align: center; padding: 40px 20px; color: #78716c; }
   .empty h3 { font-size: 14px; margin-bottom: 8px; color: #44403c; }
   .empty p { font-size: 12px; }
@@ -160,8 +169,10 @@
     </svg>
   </div>
   <h1 id="app-title" title="Toggle API Keys">LineAssemblyHub</h1>
-  <span class="tag">v0.17</span>
+  <span class="tag">v0.18</span>
   <div class="status" id="storage-status" title="Browser local storage allocation">–</div>
+  <span id="vision-badge" title="Google Vision API status" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Vision –</span>
+  <span id="gemini-badge" title="Gemini Correction API status" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Gemini –</span>
   <button class="btn small" id="connect-folder-btn" style="background:#0f766e;color:#fff;border-color:#0f766e;">Connect month folder…</button>
 </header>
 
@@ -174,6 +185,7 @@
   <button class="tab-btn active" data-tab="route">Route &amp; Merge</button>
   <button class="tab-btn" data-tab="ocr">Convert to OCR</button>
   <button class="tab-btn" data-tab="mixing">Mixing Batch Records</button>
+  <button class="tab-btn" data-tab="repair" style="color:#b45309;font-weight:600;">⚙ Repair PDFs</button>
   <button class="tab-btn" data-tab="search">Search</button>
 </nav>
 
@@ -296,6 +308,33 @@
       <div style="background:#fde68a;height:6px;border-radius:3px;margin-top:6px;overflow:hidden;"><div id="mixing-progress-bar" style="background:#d97706;height:100%;width:0%;transition:width 0.2s;"></div></div>
     </div>
     <div id="mixing-thumbs" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;padding:12px;overflow-y:auto;flex:1;"></div>
+  </section>
+
+  <!-- REPAIR TAB -->
+  <section class="tab-content" id="tab-repair" style="flex-direction:column;overflow-y:auto;">
+    <div class="panel-header" style="flex-shrink:0;">
+      <h2>Repair Oversized PDFs</h2>
+      <div class="actions">
+        <button class="btn small danger" id="repair-clear-btn">Clear</button>
+        <button class="btn small primary" id="repair-run-btn" disabled>Repair All</button>
+        <button class="btn small" id="repair-download-btn" disabled>Download All Repaired</button>
+      </div>
+    </div>
+    <div style="padding:10px 14px;background:#fef3c7;border-bottom:1px solid #fde68a;font-size:12px;color:#78350f;flex-shrink:0;">
+      <strong>What this fixes:</strong> PDFs where pages are rendered as giant pixel-sized images (e.g. 2480×3508 instead of 595×842 points) — causing the content to appear as a tiny thumbnail in the corner. The existing invisible OCR text layer is preserved and rescaled. <strong>No re-OCR needed.</strong>
+    </div>
+    <div id="repair-dropzone-area" style="padding:12px;flex-shrink:0;">
+      <div id="repair-dropzone" style="border:2px dashed #a8a29e;border-radius:6px;padding:32px 20px;text-align:center;color:#78716c;background:#fff;cursor:pointer;">
+        <p><strong>Drop one or more OCR'd PDFs here to analyse and repair</strong></p>
+        <p style="font-size:12px;margin-top:6px;opacity:0.7;">Pages with correct dimensions are passed through untouched. Only oversized pages are fixed.</p>
+      </div>
+      <input type="file" id="repair-input" accept="application/pdf" multiple style="display:none;">
+    </div>
+    <div id="repair-progress" style="display:none;padding:10px 16px;background:#e0f2fe;border-bottom:1px solid #bae6fd;font-size:12px;flex-shrink:0;">
+      <div id="repair-progress-text">–</div>
+      <div style="background:#bae6fd;height:6px;border-radius:3px;margin-top:6px;overflow:hidden;"><div id="repair-progress-bar" style="background:#0284c7;height:100%;width:0%;transition:width 0.3s;"></div></div>
+    </div>
+    <div id="repair-file-list" style="padding:12px;flex:1;overflow-y:auto;"></div>
   </section>
 
   <section class="tab-content" id="tab-search">
@@ -500,8 +539,10 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     if (btn.dataset.tab === 'ocr') refreshOcrTab();
     if (btn.dataset.tab === 'search') refreshSearchMeta();
     if (btn.dataset.tab === 'mixing') {
-      // nothing to refresh dynamically, but ensure dropzone visible if no pdf loaded
       if (!mixingState.pdfDoc) mixingDropzone.style.display = 'block';
+    }
+    if (btn.dataset.tab === 'repair') {
+      if (repairState.files.length === 0) repairDropzone.style.display = 'block';
     }
   });
 });
@@ -1455,6 +1496,280 @@ document.getElementById('download-only-all').addEventListener('click', async () 
   toast(`Downloaded ${downloaded} searchable PDFs`, 'success');
 });
 
+// ---- API STATUS BADGES ----
+// A4 at 72dpi = 595×842, Letter = 612×792. Anything bigger than ~700 wide is suspicious (pixel-sized).
+// We test Vision with a 1x1 white JPEG; test Gemini with a minimal prompt.
+
+async function testVisionKey(apiKey) {
+  if (!apiKey) return 'missing';
+  // 1×1 white JPEG base64
+  const tiny = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAABgUEA/8QAIBAAAQQCAwEBAAAAAAAAAAAAAQIDBAUSITFBUf/EABQBAQAAAAAAAAAAAAAAAAAAAAD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCwrfa2uoqaOmt4IYo2hoMUWzQB6AHkD5JNJJJJJJJJJJKSSf/Z';
+  try {
+    const resp = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ requests:[{ image:{content:tiny}, features:[{type:'DOCUMENT_TEXT_DETECTION',maxResults:1}] }] })
+    });
+    if (resp.status === 400 || resp.ok) return 'ok'; // 400 = bad image but key valid
+    if (resp.status === 403 || resp.status === 401) return 'bad';
+    return 'ok';
+  } catch(e) { return 'error'; }
+}
+
+async function testGeminiKey(apiKey) {
+  if (!apiKey) return 'missing';
+  try {
+    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ contents:[{parts:[{text:'Reply: OK'}]}], generationConfig:{maxOutputTokens:5} })
+    });
+    if (resp.ok) return 'ok';
+    if (resp.status === 403 || resp.status === 401 || resp.status === 400) return 'bad';
+    return 'error';
+  } catch(e) { return 'error'; }
+}
+
+function setApiBadge(id, status, label) {
+  const el = document.getElementById(id);
+  const styles = {
+    missing:  { bg:'#374151', color:'#9ca3af', text: label + ' –' },
+    ok:       { bg:'#14532d', color:'#86efac', text: label + ' ✓' },
+    bad:      { bg:'#7f1d1d', color:'#fca5a5', text: label + ' ✗ Bad key' },
+    error:    { bg:'#713f12', color:'#fde68a', text: label + ' ⚠ Net error' },
+    testing:  { bg:'#1e3a5f', color:'#93c5fd', text: label + ' …' },
+  };
+  const s = styles[status] || styles.missing;
+  el.style.background = s.bg; el.style.color = s.color; el.textContent = s.text;
+}
+
+async function refreshApiBadges() {
+  setApiBadge('vision-badge', 'testing', 'Vision');
+  setApiBadge('gemini-badge', 'testing', 'Gemini');
+  const [vs, gs] = await Promise.all([
+    testVisionKey(state.googleApiKey),
+    testGeminiKey(state.geminiApiKey)
+  ]);
+  setApiBadge('vision-badge', vs, 'Vision');
+  setApiBadge('gemini-badge', gs, 'Gemini');
+}
+
+// Refresh badges after keys are saved
+const _origSaveKey = document.getElementById('save-api-key-btn');
+_origSaveKey.addEventListener('click', () => { setTimeout(refreshApiBadges, 200); }, true);
+
+// ---- REPAIR TAB ----
+// Detect "bad" page: if width or height in PDF points is > 1200 it was rendered at pixel scale
+const REPAIR_POINT_THRESHOLD = 1200; // A4 = 842pt tall max; Letter = 792pt. > 1200 = clearly pixel-sized.
+
+const repairState = { files: [] }; // [{name, bytes, pdfJsDoc, pages: [{needsRepair, origW, origH}], repairedBytes}]
+
+const repairDropzone = document.getElementById('repair-dropzone');
+const repairInput = document.getElementById('repair-input');
+
+repairDropzone.addEventListener('click', () => repairInput.click());
+repairDropzone.addEventListener('dragover', (e) => { e.preventDefault(); repairDropzone.style.background='#ecfeff'; repairDropzone.style.borderColor='#0f766e'; });
+repairDropzone.addEventListener('dragleave', () => { repairDropzone.style.background=''; repairDropzone.style.borderColor=''; });
+repairDropzone.addEventListener('drop', (e) => {
+  e.preventDefault(); repairDropzone.style.background=''; repairDropzone.style.borderColor='';
+  const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf');
+  if (files.length) loadRepairFiles(files);
+});
+repairInput.addEventListener('change', (e) => {
+  const files = Array.from(e.target.files || []);
+  if (files.length) loadRepairFiles(files);
+  e.target.value = '';
+});
+
+document.getElementById('repair-clear-btn').addEventListener('click', () => {
+  repairState.files = [];
+  document.getElementById('repair-file-list').innerHTML = '';
+  document.getElementById('repair-run-btn').disabled = true;
+  document.getElementById('repair-download-btn').disabled = true;
+  repairDropzone.style.display = 'block';
+});
+
+async function loadRepairFiles(fileList) {
+  repairDropzone.style.display = 'none';
+  document.getElementById('repair-progress').style.display = 'block';
+  document.getElementById('repair-progress-text').textContent = 'Analysing files…';
+
+  for (let fi = 0; fi < fileList.length; fi++) {
+    const file = fileList[fi];
+    document.getElementById('repair-progress-text').textContent = `Analysing ${fi+1}/${fileList.length}: ${file.name}`;
+    document.getElementById('repair-progress-bar').style.width = ((fi/fileList.length)*100)+'%';
+
+    const bytes = await readFileAsBytes(file);
+    const pdfJsDoc = await pdfjsLib.getDocument({ data: bytes.slice() }).promise;
+    const pdfLibDoc = await PDFLib.PDFDocument.load(bytes.slice());
+
+    const pages = [];
+    let badCount = 0;
+    for (let i = 0; i < pdfLibDoc.getPageCount(); i++) {
+      const { width, height } = pdfLibDoc.getPages()[i].getSize();
+      const needsRepair = width > REPAIR_POINT_THRESHOLD || height > REPAIR_POINT_THRESHOLD;
+      if (needsRepair) badCount++;
+      pages.push({ needsRepair, origW: width, origH: height, pageIdx: i });
+    }
+
+    repairState.files.push({ name: file.name, bytes, pdfJsDoc, pdfLibDoc, pages, badCount, repairedBytes: null });
+    renderRepairFileList();
+  }
+
+  document.getElementById('repair-progress-bar').style.width = '100%';
+  document.getElementById('repair-progress-text').textContent = `Analysis complete — ${repairState.files.length} file(s) loaded`;
+  setTimeout(() => { document.getElementById('repair-progress').style.display = 'none'; }, 1500);
+  document.getElementById('repair-run-btn').disabled = false;
+}
+
+function renderRepairFileList() {
+  const el = document.getElementById('repair-file-list');
+  el.innerHTML = repairState.files.map((f, fi) => {
+    const statusClass = f.repairedBytes ? 'done' : f.badCount > 0 ? 'bad' : 'ok';
+    const statusText = f.repairedBytes ? `✓ Repaired` : f.badCount > 0 ? `⚠ ${f.badCount} oversized page(s)` : '✓ Pages OK';
+    const detail = f.pages.map((p,i) => {
+      const flag = p.needsRepair ? `⚠ p${i+1}: ${Math.round(p.origW)}×${Math.round(p.origH)}pt` : `✓ p${i+1}: ${Math.round(p.origW)}×${Math.round(p.origH)}pt`;
+      return flag;
+    }).join(' · ');
+    return `<div class="repair-file" data-fi="${fi}">
+      <span class="rf-name">${escapeHtml(f.name)}</span>
+      <span class="rf-status ${statusClass}">${statusText}</span>
+      ${f.repairedBytes ? `<button class="btn small" onclick="downloadRepairSingle(${fi})">Download</button>` : ''}
+      <span class="rf-detail">${detail}</span>
+    </div>`;
+  }).join('');
+}
+
+// Core repair: re-render each oversized page at correct A4 point dims, preserve OCR text layer
+async function repairSingleFile(fileObj) {
+  const { pdfJsDoc, pdfLibDoc, pages } = fileObj;
+  const newDoc = await PDFLib.PDFDocument.create();
+  const helv = await newDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+
+  for (let i = 0; i < pages.length; i++) {
+    const pg = pages[i];
+    const srcPage = pdfLibDoc.getPages()[i];
+    const { width: srcW, height: srcH } = srcPage.getSize();
+
+    if (!pg.needsRepair) {
+      // Pass through unchanged
+      const [copied] = await newDoc.copyPages(pdfLibDoc, [i]);
+      newDoc.addPage(copied);
+      continue;
+    }
+
+    // This page is oversized (pixel-dimension). 
+    // Standard A4 in points: 595 × 842. Detect orientation from pixel dims.
+    // The page was rendered at (dpiUsed/72) scale. We need to figure out target point dims.
+    // If original doc was A4 portrait: 595×842 pts → at 400dpi → 3307×4677px
+    // We infer target by: targetW = srcW / (srcW/595) but we don't know the original pts.
+    // Better: assume standard sizes. If srcW > srcH → landscape; else portrait.
+    // Standard A4: 595×842. If landscape: 842×595.
+    const isLandscape = srcW > srcH;
+    const targetW = isLandscape ? 842 : 595;
+    const targetH = isLandscape ? 595 : 842;
+
+    // Render the page at high quality into a canvas
+    const pdfJsPage = await pdfJsDoc.getPage(i + 1);
+    const renderScale = 300 / 72; // fixed 300dpi for quality
+    const unscaledVp = pdfJsPage.getViewport({ scale: 1 });
+    let rScale = renderScale;
+    const MAX_PX = 4000;
+    if (unscaledVp.width * rScale > MAX_PX || unscaledVp.height * rScale > MAX_PX) {
+      rScale = MAX_PX / Math.max(unscaledVp.width, unscaledVp.height);
+    }
+    const vp = pdfJsPage.getViewport({ scale: rScale });
+    const canvas = document.createElement('canvas');
+    canvas.width = vp.width; canvas.height = vp.height;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    await pdfJsPage.render({ canvasContext: ctx, viewport: vp }).promise;
+
+    const imgData = canvas.toDataURL('image/jpeg', 0.88);
+    const img = await newDoc.embedJpg(imgData);
+
+    // Create new page at correct point dimensions
+    const newPage = newDoc.addPage([targetW, targetH]);
+    newPage.drawImage(img, { x: 0, y: 0, width: targetW, height: targetH });
+
+    // Now transplant the existing invisible text layer from srcPage
+    // Extract text from the original pdfjs OCR layer and rescale bboxes
+    const textContent = await pdfJsPage.getTextContent();
+    // pdfJsPage renders at scale 1 → viewport = unscaledVp (in CSS pixels = points at scale 1)
+    // srcW, srcH are in PDF points (but they're giant like 2480). We need to rescale text coords.
+    // text items come with x,y in unscaled page space (points). Since srcW = pixel count, and
+    // the actual document was originally A4 (595 pt wide), scale factor = srcW/targetW
+    const scaleX = targetW / srcW;
+    const scaleY = targetH / srcH;
+
+    for (const item of textContent.items) {
+      if (!item.str || !item.str.trim()) continue;
+      const tx = item.transform;
+      // tx[4] = x, tx[5] = y in original PDF coordinate space
+      const x = tx[4] * scaleX;
+      const y = tx[5] * scaleY;
+      const fontSize = Math.max(4, (item.height || 8) * scaleY * 0.9);
+      try {
+        newPage.drawText(item.str, { x, y, size: fontSize, font: helv, color: PDFLib.rgb(0,0,0), opacity: 0 });
+      } catch(_) {}
+    }
+  }
+
+  return await newDoc.save();
+}
+
+document.getElementById('repair-run-btn').addEventListener('click', async () => {
+  const toRepair = repairState.files.filter(f => f.badCount > 0);
+  if (toRepair.length === 0) { toast('No files need repair — all pages have correct dimensions', 'success'); return; }
+
+  document.getElementById('repair-progress').style.display = 'block';
+  document.getElementById('repair-run-btn').disabled = true;
+
+  let done = 0;
+  const total = toRepair.length;
+
+  for (const fileObj of toRepair) {
+    document.getElementById('repair-progress-text').textContent = `Repairing ${done+1}/${total}: ${fileObj.name}`;
+    document.getElementById('repair-progress-bar').style.width = ((done/total)*100)+'%';
+    try {
+      fileObj.repairedBytes = await repairSingleFile(fileObj);
+      toast(`Repaired: ${fileObj.name}`, 'success');
+    } catch(err) {
+      console.error(err);
+      toast(`Failed: ${fileObj.name} — ${err.message}`, 'error');
+    }
+    done++;
+    renderRepairFileList();
+  }
+
+  document.getElementById('repair-progress-bar').style.width = '100%';
+  document.getElementById('repair-progress-text').textContent = `Repair complete — ${done} file(s) processed`;
+  setTimeout(() => { document.getElementById('repair-progress').style.display = 'none'; }, 2000);
+  document.getElementById('repair-run-btn').disabled = false;
+  document.getElementById('repair-download-btn').disabled = false;
+  toast(`All ${done} files repaired. Click Download All.`, 'success');
+});
+
+window.downloadRepairSingle = function(fi) {
+  const f = repairState.files[fi];
+  if (!f || !f.repairedBytes) return;
+  const outName = f.name.replace(/\.pdf$/i, '') + '_repaired.pdf';
+  downloadPdf(f.repairedBytes, outName);
+};
+
+document.getElementById('repair-download-btn').addEventListener('click', async () => {
+  const toDownload = repairState.files.filter(f => f.repairedBytes);
+  if (toDownload.length === 0) { toast('Run Repair first', 'error'); return; }
+  updateGlobalProgress(0, toDownload.length, 'Downloading repaired files…');
+  for (let i = 0; i < toDownload.length; i++) {
+    updateGlobalProgress(i, toDownload.length, `Downloading: ${toDownload[i].name}`);
+    const outName = toDownload[i].name.replace(/\.pdf$/i, '') + '_repaired.pdf';
+    downloadPdf(toDownload[i].repairedBytes, outName);
+    await new Promise(r => setTimeout(r, 500));
+  }
+  updateGlobalProgress(toDownload.length, toDownload.length, 'All downloads triggered');
+  setTimeout(hideGlobalProgress, 1500);
+  toast(`Downloaded ${toDownload.length} repaired files`, 'success');
+});
+
 // ---- MIXING BATCH RECORDS ----
 const mixingState = {
   pdfDoc: null,
@@ -1761,6 +2076,7 @@ async function init() {
   refreshSearchMeta();
   await restoreFolderHandle();
   toast('Ready — ' + state.products.length + ' products loaded');
+  if (state.googleApiKey || state.geminiApiKey) setTimeout(refreshApiBadges, 800);
 }
 init().catch(err => { console.error(err); toast('Init failed: ' + err.message, 'error'); });
 </script>
