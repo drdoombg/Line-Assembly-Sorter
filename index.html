@@ -172,7 +172,7 @@
   <span class="tag">v0.18</span>
   <div class="status" id="storage-status" title="Browser local storage allocation">–</div>
   <span id="vision-badge" title="Google Vision API status" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Vision –</span>
-  <span id="gemini-badge" title="Gemini Correction API status" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Gemini –</span>
+  <span id="correction-badge" title="Correction API status (live-confirmed after first successful call)" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Correction –</span>
   <button class="btn small" id="connect-folder-btn" style="background:#0f766e;color:#fff;border-color:#0f766e;">Connect month folder…</button>
 </header>
 
@@ -1247,7 +1247,7 @@ async function ocrPageWithTesseract(canvas) {
   };
 }
 
-// 4. Gemini Correction - UPDATED ERROR CATCHING
+// 4. Correction API (Gemini backend)
 async function correctWithGemini(base64Image, wordsArray, apiKey) {
   const payloadJson = wordsArray.map((w, idx) => ({ i: idx, t: w.text }));
   const payload = {
@@ -1271,7 +1271,7 @@ async function correctWithGemini(base64Image, wordsArray, apiKey) {
     } catch(e) {}
     
     if(response.status === 429) throw new Error(`GEMINI_QUOTA: ${exactError}`);
-    throw new Error(`Google Gemini API says: ${exactError}`);
+    throw new Error(`Correction API: ${exactError}`);
   }
 
   const data = await response.json();
@@ -1309,6 +1309,10 @@ document.getElementById('run-batch-ocr').addEventListener('click', async () => {
   let currentProductId = null;
   let currentPdfDoc = null;
 
+  // Reset correction tracking for this run
+  correctionStats.ok = 0; correctionStats.fail = 0;
+  correctionStats.consecutiveFail = 0; correctionStats.confirmed = false;
+
   try {
     for (const job of jobs) {
       const startTime = Date.now();
@@ -1320,18 +1324,18 @@ document.getElementById('run-batch-ocr').addEventListener('click', async () => {
         const row = document.querySelector(`.ocr-product[data-id="${job.product.id}"]`);
         if (row) row.classList.add('processing');
       }
-      
-      updateBatchProgress(done, jobs.length, job.product.name);
-      
+
       const { canvas, viewport, base64 } = await renderPageCanvas(currentPdfDoc, job.pageIdx + 1, dpi);
       let res;
-      
+      let visionOk = false;
+
       if (engine === 'vision_correction') {
         try {
           res = await ocrPageWithGoogleVision(base64, state.googleApiKey);
+          visionOk = true;
         } catch (e) {
           if (e.message.startsWith("VISION_QUOTA")) {
-            toast(`Vision quota hit: ${e.message}. Auto-switched to Tesseract.`, 'error');
+            toast(`Vision quota hit — auto-switched to Tesseract.`, 'error');
             document.getElementById('ocr-engine-select').value = 'tesseract_correction';
             engine = 'tesseract_correction';
             res = await ocrPageWithTesseract(canvas);
@@ -1339,24 +1343,46 @@ document.getElementById('run-batch-ocr').addEventListener('click', async () => {
         }
       } else {
         res = await ocrPageWithTesseract(canvas);
+        visionOk = true; // Tesseract always runs
       }
 
       res.canvasWidth = canvas.width;
       res.canvasHeight = canvas.height;
 
+      let correctionOk = false;
       try {
         res.words = await correctWithGemini(base64, res.words, state.geminiApiKey);
+        correctionOk = true;
+        recordCorrectionResult(true);
       } catch (e) {
+        recordCorrectionResult(false);
         if (e.message.startsWith("GEMINI_QUOTA")) {
-          toast(`Gemini Quota exhausted: ${e.message}`, 'error');
-          break; // Hard stop the batch
+          toast(`Correction quota exhausted — stopping batch.`, 'error');
+          break;
         }
-        console.warn('Correction fallback on page', job.pageIdx + 1, e);
+        // 3+ consecutive failures → warn and pause
+        if (correctionStats.consecutiveFail === 3) {
+          toast(`⚠ Correction failing on ${correctionStats.consecutiveFail} pages in a row — check key`, 'error');
+        }
+        if (correctionStats.consecutiveFail >= 5) {
+          const cont = confirm(`Correction has failed ${correctionStats.consecutiveFail} pages in a row.
+
+Pages are being saved with Vision-only OCR (no handwriting correction).
+
+Continue anyway?`);
+          if (!cont) break;
+          correctionStats.consecutiveFail = 0; // reset so we don't prompt every page
+        }
       }
+
+      // Show Vision + Correction status in progress label
+      const vLabel = visionOk ? 'Vision✓' : 'Vision✗';
+      const cLabel = correctionOk ? 'Correction✓' : 'Correction✗';
+      updateBatchProgress(done, jobs.length, `${job.product.name} — ${vLabel} ${cLabel}`);
 
       job.product.ocrByPage[job.pageIdx] = res;
       done++;
-      
+
       const elapsed = Date.now() - startTime;
       if (elapsed < 4200) {
         await new Promise(r => setTimeout(r, 4200 - elapsed));
@@ -1373,7 +1399,10 @@ document.getElementById('run-batch-ocr').addEventListener('click', async () => {
     hideBatchProgress();
     document.querySelectorAll('.ocr-product').forEach(el => el.classList.remove('processing'));
     refreshOcrTab();
-    toast('OCR complete for ' + done + ' pages', 'success');
+    const corrSummary = correctionStats.ok > 0
+      ? `Vision+Correction: ${correctionStats.ok} pages · Vision-only: ${correctionStats.fail} pages`
+      : `Vision-only (Correction did not run on any page — check key)`;
+    toast(`OCR complete: ${done} pages. ${corrSummary}`, correctionStats.fail > 0 ? 'error' : 'success');
   } catch(err) {
     console.error(err);
     hideBatchProgress();
@@ -1497,45 +1526,45 @@ document.getElementById('download-only-all').addEventListener('click', async () 
 });
 
 // ---- API STATUS BADGES ----
-// A4 at 72dpi = 595×842, Letter = 612×792. Anything bigger than ~700 wide is suspicious (pixel-sized).
-// We test Vision with a 1x1 white JPEG; test Gemini with a minimal prompt.
+// Vision: tested with a live 1×1 JPEG call (CORS is permissive on Cloud Vision endpoint).
+// Correction: CORS blocks preflight on the Gemini endpoint from browser origins — structural
+// key check only at startup. Badge goes confirmed-green only after a real correction call
+// succeeds during an OCR run. Consecutive failures trigger a visible warning mid-run.
+
+// Session-level correction tracking (reset each OCR run)
+const correctionStats = { ok: 0, fail: 0, consecutiveFail: 0, confirmed: false };
 
 async function testVisionKey(apiKey) {
   if (!apiKey) return 'missing';
-  // 1×1 white JPEG base64
   const tiny = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAABgUEA/8QAIBAAAQQCAwEBAAAAAAAAAAAAAQIDBAUSITFBUf/EABQBAQAAAAAAAAAAAAAAAAAAAAD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCwrfa2uoqaOmt4IYo2hoMUWzQB6AHkD5JNJJJJJJJJJJKSSf/Z';
   try {
     const resp = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`, {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ requests:[{ image:{content:tiny}, features:[{type:'DOCUMENT_TEXT_DETECTION',maxResults:1}] }] })
     });
-    if (resp.status === 400 || resp.ok) return 'ok'; // 400 = bad image but key valid
+    if (resp.status === 400 || resp.ok) return 'ok';
     if (resp.status === 403 || resp.status === 401) return 'bad';
     return 'ok';
   } catch(e) { return 'error'; }
 }
 
-async function testGeminiKey(apiKey) {
+function checkCorrectionKeyFormat(apiKey) {
+  // AIzaSy keys are always 39 chars starting with AIzaSy
   if (!apiKey) return 'missing';
-  try {
-    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ contents:[{parts:[{text:'Reply: OK'}]}], generationConfig:{maxOutputTokens:5} })
-    });
-    if (resp.ok) return 'ok';
-    if (resp.status === 403 || resp.status === 401 || resp.status === 400) return 'bad';
-    return 'error';
-  } catch(e) { return 'error'; }
+  if (/^AIzaSy[A-Za-z0-9_-]{32}$/.test(apiKey.trim())) return 'saved';
+  return 'bad';
 }
 
 function setApiBadge(id, status, label) {
   const el = document.getElementById(id);
   const styles = {
-    missing:  { bg:'#374151', color:'#9ca3af', text: label + ' –' },
-    ok:       { bg:'#14532d', color:'#86efac', text: label + ' ✓' },
-    bad:      { bg:'#7f1d1d', color:'#fca5a5', text: label + ' ✗ Bad key' },
-    error:    { bg:'#713f12', color:'#fde68a', text: label + ' ⚠ Net error' },
-    testing:  { bg:'#1e3a5f', color:'#93c5fd', text: label + ' …' },
+    missing:   { bg:'#374151', color:'#9ca3af', text: label + ' –' },
+    ok:        { bg:'#14532d', color:'#86efac', text: label + ' ✓ Live' },
+    saved:     { bg:'#1c3d5a', color:'#93c5fd', text: label + ' ✓ Saved' },
+    bad:       { bg:'#7f1d1d', color:'#fca5a5', text: label + ' ✗ Bad key' },
+    error:     { bg:'#713f12', color:'#fde68a', text: label + ' ⚠ Net error' },
+    failing:   { bg:'#7f1d1d', color:'#fca5a5', text: label + ' ✗ Failing' },
+    testing:   { bg:'#1e3a5f', color:'#93c5fd', text: label + ' …' },
   };
   const s = styles[status] || styles.missing;
   el.style.background = s.bg; el.style.color = s.color; el.textContent = s.text;
@@ -1543,18 +1572,39 @@ function setApiBadge(id, status, label) {
 
 async function refreshApiBadges() {
   setApiBadge('vision-badge', 'testing', 'Vision');
-  setApiBadge('gemini-badge', 'testing', 'Gemini');
-  const [vs, gs] = await Promise.all([
-    testVisionKey(state.googleApiKey),
-    testGeminiKey(state.geminiApiKey)
-  ]);
+  setApiBadge('correction-badge', 'testing', 'Correction');
+  const vs = await testVisionKey(state.googleApiKey);
   setApiBadge('vision-badge', vs, 'Vision');
-  setApiBadge('gemini-badge', gs, 'Gemini');
+  // Correction: structural check only — confirmed live only after real call succeeds
+  const cs = correctionStats.confirmed ? 'ok' : checkCorrectionKeyFormat(state.geminiApiKey);
+  setApiBadge('correction-badge', cs, 'Correction');
+}
+
+// Called by OCR run after each correction attempt
+function recordCorrectionResult(success) {
+  if (success) {
+    correctionStats.ok++;
+    correctionStats.consecutiveFail = 0;
+    if (!correctionStats.confirmed) {
+      correctionStats.confirmed = true;
+      setApiBadge('correction-badge', 'ok', 'Correction');
+    }
+  } else {
+    correctionStats.fail++;
+    correctionStats.consecutiveFail++;
+    if (correctionStats.consecutiveFail >= 3 && !correctionStats.confirmed) {
+      setApiBadge('correction-badge', 'failing', 'Correction');
+    }
+  }
 }
 
 // Refresh badges after keys are saved
 const _origSaveKey = document.getElementById('save-api-key-btn');
-_origSaveKey.addEventListener('click', () => { setTimeout(refreshApiBadges, 200); }, true);
+_origSaveKey.addEventListener('click', () => {
+  correctionStats.ok = 0; correctionStats.fail = 0;
+  correctionStats.consecutiveFail = 0; correctionStats.confirmed = false;
+  setTimeout(refreshApiBadges, 200);
+}, true);
 
 // ---- REPAIR TAB ----
 // Detect "bad" page: if width or height in PDF points is > 1200 it was rendered at pixel scale
@@ -1931,15 +1981,27 @@ document.getElementById('mixing-ocr-btn').addEventListener('click', async () => 
       }
       res.canvasWidth = canvas.width; res.canvasHeight = canvas.height;
 
+      let correctionOkMix = false;
       if (state.geminiApiKey && res.words && res.words.length > 0) {
-        try { res.words = await correctWithGemini(base64, res.words, state.geminiApiKey); } catch(e) {}
+        try {
+          res.words = await correctWithGemini(base64, res.words, state.geminiApiKey);
+          correctionOkMix = true;
+          recordCorrectionResult(true);
+        } catch(e) {
+          recordCorrectionResult(false);
+          if (correctionStats.consecutiveFail >= 3) {
+            document.getElementById('mixing-progress-text').textContent =
+              `⚠ Correction failing on last ${correctionStats.consecutiveFail} pages — check Correction key`;
+          }
+        }
       }
 
       mixingState.pages[i].ocrResult = res;
 
-      // Update page label with status
+      // Update page label with Vision + Correction status
+      const cStatus = correctionOkMix ? 'Vision✓ Correction✓' : state.geminiApiKey ? 'Vision✓ Correction✗' : 'Vision✓';
       const label = document.getElementById(`mixing-page-label-${i}`);
-      if (label) label.textContent = `Page ${i + 1} — ✓ OCR done`;
+      if (label) label.textContent = `Page ${i + 1} — ${cStatus}`;
 
       done++;
       const elapsed = Date.now() - startTime;
@@ -1950,7 +2012,10 @@ document.getElementById('mixing-ocr-btn').addEventListener('click', async () => 
     document.getElementById('mixing-progress-text').textContent = `OCR complete — ${done} pages`;
     setTimeout(() => { document.getElementById('mixing-progress').style.display = 'none'; }, 2000);
     document.getElementById('mixing-download-btn').disabled = false;
-    toast(`Mixing OCR complete: ${done} pages`, 'success');
+    const mixCorrSummary = correctionStats.ok > 0
+      ? `${correctionStats.ok} pages Vision+Correction, ${correctionStats.fail} Vision-only`
+      : correctionStats.fail > 0 ? `⚠ Correction failed all ${correctionStats.fail} pages — check key` : '';
+    toast(`Mixing OCR: ${done} pages. ${mixCorrSummary}`, correctionStats.fail > 0 && correctionStats.ok === 0 ? 'error' : 'success');
   } catch(err) {
     console.error(err);
     document.getElementById('mixing-progress').style.display = 'none';
