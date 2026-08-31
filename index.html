@@ -177,7 +177,7 @@
     </svg>
   </div>
   <h1 id="app-title" title="Toggle API Keys">LineAssemblyHub</h1>
-  <span class="tag">v0.29</span>
+  <span class="tag">v0.30</span>
   <div class="status" id="storage-status" title="Browser local storage allocation">–</div>
   <span id="vision-badge" title="Google Vision API status" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Vision –</span>
   <span id="correction-badge" title="Correction API status (live-confirmed after first successful call)" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Correction –</span>
@@ -1333,7 +1333,7 @@ async function correctWithGemini(base64Image, wordsArray, apiKey) {
       { text: JSON.stringify(candidates) },
       { inlineData: { mimeType: "image/jpeg", data: base64Image } }
     ]}],
-    generationConfig: { responseMimeType: "application/json", temperature: 0.0, maxOutputTokens: 1024 }
+    generationConfig: { responseMimeType: "application/json", temperature: 0.0 }
   };
 
   const t0 = Date.now();
@@ -1365,7 +1365,14 @@ async function correctWithGemini(base64Image, wordsArray, apiKey) {
   if (!rawText) throw new Error('Gemini: empty response content — ' + JSON.stringify(candidate).slice(0, 200));
 
   try {
-    const correctedArr = JSON.parse(rawText);
+    // Extract JSON array robustly — Gemini sometimes wraps in markdown or adds preamble text
+    let jsonText = rawText.trim();
+    const arrStart = jsonText.indexOf('[');
+    const arrEnd = jsonText.lastIndexOf(']');
+    if (arrStart !== -1 && arrEnd !== -1 && arrEnd > arrStart) {
+      jsonText = jsonText.slice(arrStart, arrEnd + 1);
+    }
+    const correctedArr = JSON.parse(jsonText);
     const correctedWords = JSON.parse(JSON.stringify(wordsArray));
     correctedArr.forEach(item => {
       if (item.i !== undefined && correctedWords[item.i]) {
@@ -1374,7 +1381,7 @@ async function correctWithGemini(base64Image, wordsArray, apiKey) {
     });
     return correctedWords;
   } catch(parseErr) {
-    throw new Error('Gemini JSON parse failed: ' + rawText.slice(0, 100));
+    throw new Error('Gemini JSON parse failed: ' + rawText.slice(0, 120));
   }
 }
 
