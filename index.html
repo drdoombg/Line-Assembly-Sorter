@@ -177,7 +177,7 @@
     </svg>
   </div>
   <h1 id="app-title" title="Toggle API Keys">LineAssemblyHub</h1>
-  <span class="tag">v0.24</span>
+  <span class="tag">v0.25</span>
   <div class="status" id="storage-status" title="Browser local storage allocation">–</div>
   <span id="vision-badge" title="Google Vision API status" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Vision –</span>
   <span id="correction-badge" title="Correction API status (live-confirmed after first successful call)" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Correction –</span>
@@ -266,7 +266,8 @@
       <div>
         <label>Engine:</label>
         <select id="ocr-engine-select">
-          <option value="vision_correction" selected>Vision + Correction</option>
+          <option value="vision_correction" selected>Vision + Correction (AI handwriting fix)</option>
+          <option value="vision_only">Vision Only (fast, no handwriting fix)</option>
           <option value="tesseract_correction">Tesseract + Correction</option>
         </select>
       </div>
@@ -1286,6 +1287,23 @@ async function ocrPageWithTesseract(canvas) {
   };
 }
 
+// Downscale base64 image for Gemini — Vision needs full 300DPI, Gemini only needs ~1200px
+function ocrDownscaleForGemini(base64Full, maxDim) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * scale);
+      c.height = Math.round(img.height * scale);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      resolve(c.toDataURL('image/jpeg', 0.82).split(',')[1]);
+    };
+    img.onerror = () => resolve(base64Full); // fallback: use original
+    img.src = 'data:image/jpeg;base64,' + base64Full;
+  });
+}
+
 // 4. Correction API (Gemini backend)
 
 async function correctWithGemini(base64Image, wordsArray, apiKey) {
@@ -1354,128 +1372,84 @@ document.getElementById('run-batch-ocr').addEventListener('click', async () => {
   correctionStats.ok = 0; correctionStats.fail = 0;
   correctionStats.consecutiveFail = 0; correctionStats.confirmed = false;
 
-  // Helper: render one page and fire Vision, returns { canvas, base64, visionPromise, visionOk }
-  async function prepareJob(job, pdfDoc, eng) {
-    // Render at full DPI for Vision accuracy
-    const { canvas, viewport, base64 } = await renderPageCanvas(pdfDoc, job.pageIdx + 1, dpi);
-    let visionPromise;
-    if (eng === 'vision_correction') {
-      visionPromise = ocrPageWithGoogleVision(base64, state.googleApiKey).catch(e => ({ __error: e }));
-    } else {
-      visionPromise = ocrPageWithTesseract(canvas).catch(e => ({ __error: e }));
-    }
-    return { canvas, base64, visionPromise };
-  }
-
-  // Build a separate low-res base64 for Gemini (Vision gets full res, Gemini only needs ~1200px)
-  async function smallBase64(base64Full, maxDim) {
-    return new Promise(resolve => {
-      const img = new Image();
-      img.onload = () => {
-        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
-        const c = document.createElement('canvas');
-        c.width = Math.round(img.width * scale);
-        c.height = Math.round(img.height * scale);
-        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-        resolve(c.toDataURL('image/jpeg', 0.80).split(',')[1]);
-      };
-      img.src = 'data:image/jpeg;base64,' + base64Full;
-    });
-  }
-
   try {
-    // Pipelined: pre-render + pre-fire Vision for job[0] before the loop starts
     let pdfDocCache = {};
-    async function getPdfDoc(job) {
-      if (!pdfDocCache[job.product.id]) {
-        pdfDocCache[job.product.id] = await pdfjsLib.getDocument({ data: job.product.pdfBytes.slice() }).promise;
-      }
-      return pdfDocCache[job.product.id];
-    }
-
-    // Kick off first job immediately
-    let nextPdfDoc = await getPdfDoc(jobs[0]);
-    let nextPrep = await prepareJob(jobs[0], nextPdfDoc, engine);
-
     for (let jobIdx = 0; jobIdx < jobs.length; jobIdx++) {
       const job = jobs[jobIdx];
-      const { canvas, base64, visionPromise } = nextPrep;
       const pageLabel = `${job.product.name} p.${job.pageIdx+1}`;
 
-      // Highlight current product row
-      if (job.product.id !== currentProductId) {
-        currentProductId = job.product.id;
+      // Cache PDF doc per product
+      if (!pdfDocCache[job.product.id]) {
+        pdfDocCache[job.product.id] = await pdfjsLib.getDocument({ data: job.product.pdfBytes.slice() }).promise;
         document.querySelectorAll('.ocr-product').forEach(el => el.classList.remove('processing'));
         const row = document.querySelector(`.ocr-product[data-id="${job.product.id}"]`);
         if (row) row.classList.add('processing');
       }
+      const pdfDoc = pdfDocCache[job.product.id];
 
-      // While we await Vision for THIS page, start render+Vision for NEXT page in parallel
+      // --- RENDER ---
+      updateBatchProgress(done, jobs.length, pageLabel, { render:'running', vision:'waiting', correction:'waiting', save:'waiting' });
+      const { canvas, base64 } = await renderPageCanvas(pdfDoc, job.pageIdx + 1, dpi);
+
+      // --- VISION ---
       updateBatchProgress(done, jobs.length, pageLabel, { render:'done-ok', vision:'running', correction:'waiting', save:'waiting' });
-      const nextJob = jobs[jobIdx + 1];
-      let nextPrepPromise = null;
-      if (nextJob) {
-        // Fire next page prep immediately — overlaps with current Vision+Correction
-        nextPrepPromise = getPdfDoc(nextJob).then(doc => prepareJob(nextJob, doc, engine));
-      }
-
-      // Await Vision result for current page
       let res;
       let visionOk = false;
-      const visionResult = await visionPromise;
-      if (visionResult && visionResult.__error) {
-        const e = visionResult.__error;
-        if (e.message && e.message.startsWith("VISION_QUOTA")) {
-          toast(`Vision quota hit — auto-switched to Tesseract.`, 'error');
-          document.getElementById('ocr-engine-select').value = 'tesseract_correction';
-          engine = 'tesseract_correction';
-          res = await ocrPageWithTesseract(canvas);
+      if (engine === 'vision_only' || engine === 'vision_correction') {
+        try {
+          res = await ocrPageWithGoogleVision(base64, state.googleApiKey);
           visionOk = true;
-        } else throw e;
+        } catch (e) {
+          if (e.message.startsWith("VISION_QUOTA")) {
+            toast(`Vision quota hit — auto-switched to Tesseract.`, 'error');
+            document.getElementById('ocr-engine-select').value = 'tesseract_correction';
+            engine = 'tesseract_correction';
+            res = await ocrPageWithTesseract(canvas);
+            visionOk = true;
+          } else throw e;
+        }
       } else {
-        res = visionResult;
+        res = await ocrPageWithTesseract(canvas);
         visionOk = true;
       }
-
       res.canvasWidth = canvas.width;
       res.canvasHeight = canvas.height;
 
-      // Correction — use downscaled image so payload is ~10x smaller → faster round-trip
       const visionStage = visionOk ? 'done-ok' : 'done-err';
-      updateBatchProgress(done, jobs.length, pageLabel, { render:'done-ok', vision:visionStage, correction:'running', save:'waiting' });
 
+      // --- CORRECTION (skip for vision_only) ---
       let correctionOk = false;
-      try {
-        if (!res.words || res.words.length === 0) throw new Error('Vision returned 0 words');
-        const geminiImg = await smallBase64(base64, 1200);
-        res.words = await correctWithGemini(geminiImg, res.words, state.geminiApiKey);
-        correctionOk = true;
-        recordCorrectionResult(true);
-      } catch (e) {
-        console.error('[Correction error]', e.message, e);
-        recordCorrectionResult(false);
-        if (e.message.startsWith("GEMINI_QUOTA")) {
-          toast(`Correction quota exhausted — stopping batch.`, 'error');
-          break;
+      if (engine === 'vision_correction' || engine === 'tesseract_correction') {
+        updateBatchProgress(done, jobs.length, pageLabel, { render:'done-ok', vision:visionStage, correction:'running', save:'waiting' });
+        try {
+          if (!res.words || res.words.length === 0) throw new Error('Vision returned 0 words');
+          // Downscale for Gemini — Vision needs 300DPI, Gemini only needs ~1200px max
+          const geminiImg = await ocrDownscaleForGemini(base64, 1200);
+          res.words = await correctWithGemini(geminiImg, res.words, state.geminiApiKey);
+          correctionOk = true;
+          recordCorrectionResult(true);
+        } catch (e) {
+          console.error('[Correction error]', e.message, e);
+          recordCorrectionResult(false);
+          if (e.message.startsWith("GEMINI_QUOTA")) { toast(`Correction quota exhausted — stopping.`, 'error'); break; }
+          if (correctionStats.consecutiveFail === 1) toast(`⚠ Correction error: ${e.message}`, 'error');
+          if (correctionStats.consecutiveFail === 3) toast(`⚠ Correction failing ${correctionStats.consecutiveFail}×: ${e.message}`, 'error');
+          if (correctionStats.consecutiveFail >= 5) {
+            const cont = confirm(`Correction failed ${correctionStats.consecutiveFail} pages.\n\nError: ${e.message}\n\nContinue with Vision-only?`);
+            if (!cont) break;
+            correctionStats.consecutiveFail = 0;
+          }
         }
-        if (correctionStats.consecutiveFail === 1) toast(`⚠ Correction: ${e.message}`, 'error');
-        if (correctionStats.consecutiveFail === 3) toast(`⚠ Correction failing ${correctionStats.consecutiveFail}×: ${e.message}`, 'error');
-        if (correctionStats.consecutiveFail >= 5) {
-          const cont = confirm(`Correction failed ${correctionStats.consecutiveFail} pages.\n\nError: ${e.message}\n\nContinue with Vision-only?`);
-          if (!cont) break;
-          correctionStats.consecutiveFail = 0;
-        }
+      } else {
+        updateBatchProgress(done, jobs.length, pageLabel, { render:'done-ok', vision:visionStage, correction:'waiting', save:'waiting' });
       }
 
-      // Save
-      const corrStage = correctionOk ? 'done-ok' : 'done-err';
+      // --- SAVE ---
+      const corrStage = engine === 'vision_only' ? 'waiting' : (correctionOk ? 'done-ok' : 'done-err');
       updateBatchProgress(done, jobs.length, pageLabel, { render:'done-ok', vision:visionStage, correction:corrStage, save:'running' });
       job.product.ocrByPage[job.pageIdx] = res;
       done++;
       updateBatchProgress(done, jobs.length, pageLabel + ' ✓', { render:'done-ok', vision:visionStage, correction:corrStage, save:'done-ok' });
-
-      // Await next page prep (it's been running in parallel during Vision+Correction above)
-      if (nextPrepPromise) nextPrep = await nextPrepPromise;
     }
 
     const touched = new Set(jobs.map(j => j.product.id));
@@ -1488,10 +1462,17 @@ document.getElementById('run-batch-ocr').addEventListener('click', async () => {
     hideBatchProgress();
     document.querySelectorAll('.ocr-product').forEach(el => el.classList.remove('processing'));
     refreshOcrTab();
-    const corrSummary = correctionStats.ok > 0
-      ? `Vision+Correction: ${correctionStats.ok} pages · Vision-only: ${correctionStats.fail} pages`
-      : `Vision-only (Correction did not run on any page — check key)`;
-    toast(`OCR complete: ${done} pages. ${corrSummary}`, correctionStats.fail > 0 ? 'error' : 'success');
+    let corrSummary;
+    const selectedEngine = document.getElementById('ocr-engine-select').value;
+    if (selectedEngine === 'vision_only') {
+      corrSummary = 'Vision Only';
+    } else if (correctionStats.ok > 0) {
+      corrSummary = `Vision+Correction: ${correctionStats.ok} pages · Vision-only: ${correctionStats.fail} pages`;
+    } else {
+      corrSummary = `Vision-only (Correction failed — check key or switch engine)`;
+    }
+    const toastType = (selectedEngine !== 'vision_only' && correctionStats.ok === 0 && correctionStats.fail > 0) ? 'error' : 'success';
+    toast(`OCR complete: ${done} pages. ${corrSummary}`, toastType);
   } catch(err) {
     console.error(err);
     hideBatchProgress();
