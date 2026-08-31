@@ -169,7 +169,7 @@
     </svg>
   </div>
   <h1 id="app-title" title="Toggle API Keys">LineAssemblyHub</h1>
-  <span class="tag">v0.20</span>
+  <span class="tag">v0.21</span>
   <div class="status" id="storage-status" title="Browser local storage allocation">–</div>
   <span id="vision-badge" title="Google Vision API status" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Vision –</span>
   <span id="correction-badge" title="Correction API status (live-confirmed after first successful call)" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Correction –</span>
@@ -194,8 +194,9 @@
   <label>Vision Key:</label>
   <input type="text" id="api-key-input" style="width: 160px;" placeholder="AIzaSy...">
   <label>Correction Key:</label>
-  <input type="text" id="gemini-key-input" style="width: 160px;" placeholder="AIzaSy...">
+  <input type="text" id="gemini-key-input" style="width: 260px;" placeholder="AQ... or AIzaSy...">
   <button class="btn small" id="save-api-key-btn">Save to Browser Memory</button>
+  <button class="btn small" id="test-gemini-btn" style="background:#1e3a5f;color:#93c5fd;border-color:#1e3a5f;">Test Correction Key</button>
   <span id="key-status" style="font-size: 11px; color: #166534; font-weight:600;"></span>
 </div>
 
@@ -1601,6 +1602,42 @@ function recordCorrectionResult(success) {
     }
   }
 }
+
+// Test Correction Key button — fires a real minimal Gemini call and surfaces the raw result
+document.getElementById('test-gemini-btn').addEventListener('click', async () => {
+  const keyInput = document.getElementById('gemini-key-input').value.trim();
+  const keyToTest = keyInput || state.geminiApiKey;
+  if (!keyToTest) { toast('Enter a Correction Key first', 'error'); return; }
+  document.getElementById('key-status').textContent = 'Testing Correction key…';
+  setApiBadge('correction-badge', 'testing', 'Correction');
+  try {
+    const payload = {
+      contents: [{ parts: [{ text: 'Reply with the single word: OK' }] }],
+      generationConfig: { temperature: 0 }
+    };
+    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${keyToTest}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+    });
+    const raw = await resp.text();
+    console.log('[Gemini test raw response]', raw);
+    if (resp.ok) {
+      const data = JSON.parse(raw);
+      const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || '(no text)';
+      document.getElementById('key-status').textContent = 'Correction key WORKS ✓ — Gemini replied: ' + reply.trim();
+      setApiBadge('correction-badge', 'ok', 'Correction');
+      correctionStats.confirmed = true;
+      toast('Correction key is live ✓', 'success');
+    } else {
+      document.getElementById('key-status').textContent = 'FAILED: HTTP ' + resp.status + ' — ' + raw.slice(0, 200);
+      setApiBadge('correction-badge', 'bad', 'Correction');
+      toast('Correction key failed — see key status for details', 'error');
+    }
+  } catch(e) {
+    document.getElementById('key-status').textContent = 'Network error: ' + e.message;
+    setApiBadge('correction-badge', 'error', 'Correction');
+    toast('Network error testing key: ' + e.message, 'error');
+  }
+});
 
 // Refresh badges after keys are saved
 const _origSaveKey = document.getElementById('save-api-key-btn');
