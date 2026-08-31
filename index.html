@@ -169,7 +169,7 @@
     </svg>
   </div>
   <h1 id="app-title" title="Toggle API Keys">LineAssemblyHub</h1>
-  <span class="tag">v0.19</span>
+  <span class="tag">v0.20</span>
   <div class="status" id="storage-status" title="Browser local storage allocation">–</div>
   <span id="vision-badge" title="Google Vision API status" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Vision –</span>
   <span id="correction-badge" title="Correction API status (live-confirmed after first successful call)" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Correction –</span>
@@ -1351,25 +1351,27 @@ document.getElementById('run-batch-ocr').addEventListener('click', async () => {
 
       let correctionOk = false;
       try {
+        if (!res.words || res.words.length === 0) throw new Error('Vision returned 0 words — nothing to correct');
         res.words = await correctWithGemini(base64, res.words, state.geminiApiKey);
         correctionOk = true;
         recordCorrectionResult(true);
       } catch (e) {
+        console.error('[Correction error]', e.message, e);
         recordCorrectionResult(false);
         if (e.message.startsWith("GEMINI_QUOTA")) {
           toast(`Correction quota exhausted — stopping batch.`, 'error');
           break;
         }
-        // 3+ consecutive failures → warn and pause
+        // Always surface the real error message on first failure so it's visible
+        if (correctionStats.consecutiveFail === 1) {
+          toast(`⚠ Correction error: ${e.message}`, 'error');
+        }
+        // 3+ consecutive failures → warn again
         if (correctionStats.consecutiveFail === 3) {
-          toast(`⚠ Correction failing on ${correctionStats.consecutiveFail} pages in a row — check key`, 'error');
+          toast(`⚠ Correction failing ${correctionStats.consecutiveFail}× in a row: ${e.message}`, 'error');
         }
         if (correctionStats.consecutiveFail >= 5) {
-          const cont = confirm(`Correction has failed ${correctionStats.consecutiveFail} pages in a row.
-
-Pages are being saved with Vision-only OCR (no handwriting correction).
-
-Continue anyway?`);
+          const cont = confirm(`Correction has failed ${correctionStats.consecutiveFail} pages in a row.\n\nLast error: ${e.message}\n\nPages are being saved with Vision-only OCR (no handwriting correction).\n\nContinue anyway?`);
           if (!cont) break;
           correctionStats.consecutiveFail = 0; // reset so we don't prompt every page
         }
