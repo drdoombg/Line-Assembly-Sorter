@@ -177,7 +177,7 @@
     </svg>
   </div>
   <h1 id="app-title" title="Toggle API Keys">LineAssemblyHub</h1>
-  <span class="tag">v0.28</span>
+  <span class="tag">v0.29</span>
   <div class="status" id="storage-status" title="Browser local storage allocation">–</div>
   <span id="vision-badge" title="Google Vision API status" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Vision –</span>
   <span id="correction-badge" title="Correction API status (live-confirmed after first successful call)" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Correction –</span>
@@ -1350,18 +1350,32 @@ async function correctWithGemini(base64Image, wordsArray, apiKey) {
   }
 
   const data = await response.json();
-  if (data.candidates && data.candidates[0].content.parts[0].text) {
-    const correctedArr = JSON.parse(data.candidates[0].content.parts[0].text);
+  console.log('[Gemini raw response]', JSON.stringify(data).slice(0, 400));
+
+  // Safely extract text from response — structure varies by model version
+  const candidate = data.candidates?.[0];
+  if (!candidate) throw new Error('Gemini: no candidates in response — ' + JSON.stringify(data).slice(0, 200));
+
+  // Handle both finishReason=STOP and safety blocks
+  if (candidate.finishReason && candidate.finishReason !== 'STOP' && candidate.finishReason !== 'MAX_TOKENS') {
+    throw new Error('Gemini blocked: ' + candidate.finishReason);
+  }
+
+  const rawText = candidate.content?.parts?.[0]?.text;
+  if (!rawText) throw new Error('Gemini: empty response content — ' + JSON.stringify(candidate).slice(0, 200));
+
+  try {
+    const correctedArr = JSON.parse(rawText);
     const correctedWords = JSON.parse(JSON.stringify(wordsArray));
-    // Only apply corrections to the candidate subset we sent
     correctedArr.forEach(item => {
       if (item.i !== undefined && correctedWords[item.i]) {
         correctedWords[item.i].text = item.t;
       }
     });
     return correctedWords;
+  } catch(parseErr) {
+    throw new Error('Gemini JSON parse failed: ' + rawText.slice(0, 100));
   }
-  return wordsArray;
 }
 
 // Top-level helper — renders page and runs Vision/Tesseract, returns {res, base64, canvas, visionOk}
