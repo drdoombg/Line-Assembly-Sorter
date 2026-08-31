@@ -177,7 +177,7 @@
     </svg>
   </div>
   <h1 id="app-title" title="Toggle API Keys">LineAssemblyHub</h1>
-  <span class="tag">v0.35</span>
+  <span class="tag">v0.36</span>
   <div class="status" id="storage-status" title="Browser local storage allocation">–</div>
   <span id="vision-badge" title="Google Vision API status" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Vision –</span>
   <span id="correction-badge" title="Correction API status (live-confirmed after first successful call)" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Correction –</span>
@@ -2029,6 +2029,32 @@ document.getElementById('mixing-clear-btn').addEventListener('click', () => {
   document.getElementById('mixing-download-btn').disabled = true;
 });
 
+// Bake a full-res canvas at the correct visual orientation for OCR.
+// Called at load time and whenever user rotates a page.
+// Stores pg.ocrCanvas and pg.ocrBase64 on mixingState.pages[idx].
+async function bakeMixingOcrCanvas(pageIdx) {
+  const pg = mixingState.pages[pageIdx];
+  if (!mixingState.pdfDoc) return;
+  const page = await mixingState.pdfDoc.getPage(pg.index + 1);
+  const unscaledVp = page.getViewport({ scale: 1 });
+  let scale = 300 / 72; // Full OCR DPI
+  const MAX_PIXELS = 4000;
+  // Apply rotation in viewport — this is what Vision will see
+  const vpRot = page.getViewport({ scale: 1, rotation: pg.rotation });
+  if (vpRot.width * scale > MAX_PIXELS || vpRot.height * scale > MAX_PIXELS) {
+    scale = MAX_PIXELS / Math.max(vpRot.width, vpRot.height);
+  }
+  const vp = page.getViewport({ scale, rotation: pg.rotation });
+  const canvas = document.createElement('canvas');
+  canvas.width = vp.width; canvas.height = vp.height;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  await page.render({ canvasContext: ctx, viewport: vp }).promise;
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+  pg.ocrCanvas = canvas;
+  pg.ocrBase64 = dataUrl.split(',')[1];
+}
+
 async function loadMixingPdf(file) {
   toast('Loading mixing records…');
   try {
@@ -2070,11 +2096,16 @@ async function renderMixingThumbs() {
     const page = await pdfDoc.getPage(pg.index + 1);
     const vp = page.getViewport({ scale: THUMB_DPI / 72 });
 
+    // Thumbnail canvas — unrotated pixels, CSS rotation applied visually
     const canvas = document.createElement('canvas');
     canvas.width = vp.width;
     canvas.height = vp.height;
     const ctx = canvas.getContext('2d');
     await page.render({ canvasContext: ctx, viewport: vp }).promise;
+
+    // Bake a full-res oriented canvas using pg.rotation in the viewport — this is what OCR uses
+    // Stored on page state so OCR just reads it; re-baked when user hits Rotate
+    await bakeMixingOcrCanvas(i);
 
     const div = document.createElement('div');
     div.className = 'thumb';
@@ -2093,6 +2124,7 @@ async function renderMixingThumbs() {
       e.stopPropagation();
       mixingState.pages[i].rotation = (mixingState.pages[i].rotation + 90) % 360;
       canvas.style.transform = `rotate(${mixingState.pages[i].rotation}deg)`;
+      bakeMixingOcrCanvas(i); // rebake OCR source with new rotation
     };
     canvasWrap.appendChild(rotateBtn);
 
@@ -2133,36 +2165,20 @@ document.getElementById('mixing-ocr-btn').addEventListener('click', async () => 
       document.getElementById('mixing-progress-text').textContent = `OCR page ${i + 1} of ${total}…`;
       document.getElementById('mixing-progress-bar').style.width = ((done / total) * 100) + '%';
 
-      // Render page at rotation=0 for OCR — text coords are always in unrotated PDF space.
-      // Display rotation (pg.rotation) is purely visual on the thumbnail.
-      // This means bbox coords from Vision are in the PDF's own coordinate space,
-      // so embedding them needs no rotation transform — just invert Y (PDF is bottom-up).
-      const page = await mixingState.pdfDoc.getPage(pg.index + 1);
-      const unscaledVp = page.getViewport({ scale: 1 });
-      let scale = dpi / 72;
-      const MAX_PIXELS = 4000;
-      if (unscaledVp.width * scale > MAX_PIXELS || unscaledVp.height * scale > MAX_PIXELS) {
-        scale = MAX_PIXELS / Math.max(unscaledVp.width, unscaledVp.height);
-      }
-      // NO rotation applied to render — OCR sees the page in its stored orientation
-      const vp = page.getViewport({ scale });
-      const canvas = document.createElement('canvas');
-      canvas.width = vp.width; canvas.height = vp.height;
-      const ctx = canvas.getContext('2d');
-      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-      await page.render({ canvasContext: ctx, viewport: vp }).promise;
-
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-      const base64 = dataUrl.split(',')[1];
+      // Use the pre-baked oriented canvas — already rendered at pg.rotation in the viewport.
+      // If user rotated a page, bakeMixingOcrCanvas was called immediately, so this is current.
+      if (!pg.ocrCanvas) await bakeMixingOcrCanvas(pg.index);
+      const ocrCanvas = pg.ocrCanvas;
+      const base64 = pg.ocrBase64;
 
       let res;
       if (state.googleApiKey) {
         try { res = await ocrPageWithGoogleVision(base64, state.googleApiKey); }
-        catch(e) { res = await ocrPageWithTesseract(canvas); }
+        catch(e) { res = await ocrPageWithTesseract(ocrCanvas); }
       } else {
-        res = await ocrPageWithTesseract(canvas);
+        res = await ocrPageWithTesseract(ocrCanvas);
       }
-      res.canvasWidth = canvas.width; res.canvasHeight = canvas.height;
+      res.canvasWidth = ocrCanvas.width; res.canvasHeight = ocrCanvas.height;
 
       let correctionOkMix = false;
       if (mixEngine === 'vision_correction' && state.geminiApiKey && res.words && res.words.length > 0) {
@@ -2236,26 +2252,31 @@ document.getElementById('mixing-download-btn').addEventListener('click', async (
       newDoc.addPage(copied);
 
       // Embed invisible OCR text.
-      // Canvas was rendered at rotation=0 (unrotated PDF space).
-      // setRotation is applied for display, but text coords are in the original unrotated space.
-      // PDFLib places text in the page's OWN coordinate system before rotation is applied,
-      // which is exactly what we have — simple scale + Y-invert, no rotation transform needed.
+      // The baked OCR canvas IS the page in display orientation (rotation already applied in viewport).
+      // setRotation on the PDF page makes it display the same way.
+      // PDFLib places text in the rotated page's coordinate space:
+      //   For rot=90: drawable area is pdfH wide × pdfW tall.
+      //   Canvas (landscape) width=pdfH scaled, height=pdfW scaled — they match directly.
+      // So: scale canvas px to PDF pts, invert Y. No extra rotation math needed.
       if (pg.ocrResult && pg.ocrResult.words) {
         const addedPage = newDoc.getPages()[i];
         const { width: pdfW, height: pdfH } = addedPage.getSize();
         const ocr = pg.ocrResult;
-        const cW = ocr.canvasWidth;
-        const cH = ocr.canvasHeight;
-        const sx = pdfW / cW;
-        const sy = pdfH / cH;
+        const cW = ocr.canvasWidth;   // baked canvas width (landscape)
+        const cH = ocr.canvasHeight;  // baked canvas height
+        const rotMod = ((pg.rotation % 360) + 360) % 360;
+        // PDFLib drawable dims after setRotation: swap pdfW/pdfH for 90/270
+        const drawW = (rotMod === 90 || rotMod === 270) ? pdfH : pdfW;
+        const drawH = (rotMod === 90 || rotMod === 270) ? pdfW : pdfH;
+        const sx = drawW / cW;
+        const sy = drawH / cH;
 
         for (const w of ocr.words) {
           if (!w.text || !w.text.trim() || !w.bbox) continue;
           const { x0, y0, x1, y1 } = w.bbox;
           const fontSize = Math.max(4, (y1 - y0) * sy * 0.9);
-          // Standard PDF coordinate mapping: scale + invert Y (PDF origin is bottom-left)
           const px = x0 * sx;
-          const py = pdfH - y1 * sy;
+          const py = drawH - y1 * sy;
           try { addedPage.drawText(w.text, { x: px, y: py, size: fontSize, font: helv, color: PDFLib.rgb(0,0,0), opacity: 0 }); } catch(_) {}
         }
       }
