@@ -177,7 +177,7 @@
     </svg>
   </div>
   <h1 id="app-title" title="Toggle API Keys">LineAssemblyHub</h1>
-  <span class="tag">v0.34</span>
+  <span class="tag">v0.35</span>
   <div class="status" id="storage-status" title="Browser local storage allocation">–</div>
   <span id="vision-badge" title="Google Vision API status" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Vision –</span>
   <span id="correction-badge" title="Correction API status (live-confirmed after first successful call)" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Correction –</span>
@@ -2133,7 +2133,10 @@ document.getElementById('mixing-ocr-btn').addEventListener('click', async () => 
       document.getElementById('mixing-progress-text').textContent = `OCR page ${i + 1} of ${total}…`;
       document.getElementById('mixing-progress-bar').style.width = ((done / total) * 100) + '%';
 
-      // Render page respecting its rotation
+      // Render page at rotation=0 for OCR — text coords are always in unrotated PDF space.
+      // Display rotation (pg.rotation) is purely visual on the thumbnail.
+      // This means bbox coords from Vision are in the PDF's own coordinate space,
+      // so embedding them needs no rotation transform — just invert Y (PDF is bottom-up).
       const page = await mixingState.pdfDoc.getPage(pg.index + 1);
       const unscaledVp = page.getViewport({ scale: 1 });
       let scale = dpi / 72;
@@ -2141,9 +2144,8 @@ document.getElementById('mixing-ocr-btn').addEventListener('click', async () => 
       if (unscaledVp.width * scale > MAX_PIXELS || unscaledVp.height * scale > MAX_PIXELS) {
         scale = MAX_PIXELS / Math.max(unscaledVp.width, unscaledVp.height);
       }
-      // Apply rotation in render
-      const rotRad = (pg.rotation * Math.PI) / 180;
-      const vp = page.getViewport({ scale, rotation: pg.rotation });
+      // NO rotation applied to render — OCR sees the page in its stored orientation
+      const vp = page.getViewport({ scale });
       const canvas = document.createElement('canvas');
       canvas.width = vp.width; canvas.height = vp.height;
       const ctx = canvas.getContext('2d');
@@ -2234,50 +2236,26 @@ document.getElementById('mixing-download-btn').addEventListener('click', async (
       newDoc.addPage(copied);
 
       // Embed invisible OCR text.
-      // PDFLib coordinate system after setRotation(N):
-      //   rot=0:   origin=bottom-left portrait.  x→right, y→up. page size = (pdfW, pdfH).
-      //   rot=90:  origin=bottom-left landscape.  x→right along landscape width, y→up along landscape height.
-      //            PDFLib internally maps this: landscape_x → portrait_y, landscape_y → portrait_x.
-      //            Effective drawable area: x ∈ [0, pdfH], y ∈ [0, pdfW].
-      //   rot=180: origin=top-right portrait (mirrored). x ∈ [0,pdfW], y ∈ [0,pdfH].
-      //   rot=270: origin=top-right landscape. x ∈ [0, pdfH], y ∈ [0, pdfW].
-      //
-      // Canvas was rendered with pg.rotation applied, so canvas coords are in landscape space for rot=90.
-      // We map canvas → PDFLib rotated space directly.
+      // Canvas was rendered at rotation=0 (unrotated PDF space).
+      // setRotation is applied for display, but text coords are in the original unrotated space.
+      // PDFLib places text in the page's OWN coordinate system before rotation is applied,
+      // which is exactly what we have — simple scale + Y-invert, no rotation transform needed.
       if (pg.ocrResult && pg.ocrResult.words) {
         const addedPage = newDoc.getPages()[i];
         const { width: pdfW, height: pdfH } = addedPage.getSize();
         const ocr = pg.ocrResult;
         const cW = ocr.canvasWidth;
         const cH = ocr.canvasHeight;
-        const rotMod = ((pg.rotation % 360) + 360) % 360;
-
-        // For rot=90/270: PDFLib's drawable space is pdfH wide × pdfW tall (landscape dimensions)
-        // For rot=0/180: PDFLib's drawable space is pdfW wide × pdfH tall (portrait dimensions)
-        const drawW = (rotMod === 90 || rotMod === 270) ? pdfH : pdfW;
-        const drawH = (rotMod === 90 || rotMod === 270) ? pdfW : pdfH;
-        const sx = drawW / cW;
-        const sy = drawH / cH;
+        const sx = pdfW / cW;
+        const sy = pdfH / cH;
 
         for (const w of ocr.words) {
           if (!w.text || !w.text.trim() || !w.bbox) continue;
           const { x0, y0, x1, y1 } = w.bbox;
-          const wordH_c = y1 - y0;
-          const fontSize = Math.max(4, wordH_c * sy * 0.9);
-          let px, py;
-
-          if (rotMod === 0 || rotMod === 90) {
-            // Canvas top-left→ PDFLib bottom-left: invert y axis
-            px = x0 * sx;
-            py = drawH - y1 * sy;
-          } else if (rotMod === 180 || rotMod === 270) {
-            px = drawW - x1 * sx;
-            py = y0 * sy;
-          } else {
-            px = x0 * sx;
-            py = drawH - y1 * sy;
-          }
-
+          const fontSize = Math.max(4, (y1 - y0) * sy * 0.9);
+          // Standard PDF coordinate mapping: scale + invert Y (PDF origin is bottom-left)
+          const px = x0 * sx;
+          const py = pdfH - y1 * sy;
           try { addedPage.drawText(w.text, { x: px, y: py, size: fontSize, font: helv, color: PDFLib.rgb(0,0,0), opacity: 0 }); } catch(_) {}
         }
       }
