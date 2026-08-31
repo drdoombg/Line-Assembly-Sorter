@@ -177,7 +177,7 @@
     </svg>
   </div>
   <h1 id="app-title" title="Toggle API Keys">LineAssemblyHub</h1>
-  <span class="tag">v0.26</span>
+  <span class="tag">v0.27</span>
   <div class="status" id="storage-status" title="Browser local storage allocation">–</div>
   <span id="vision-badge" title="Google Vision API status" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Vision –</span>
   <span id="correction-badge" title="Correction API status (live-confirmed after first successful call)" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Correction –</span>
@@ -1364,6 +1364,23 @@ async function correctWithGemini(base64Image, wordsArray, apiKey) {
   return wordsArray;
 }
 
+// Top-level helper — renders page and runs Vision/Tesseract, returns {res, base64, canvas, visionOk}
+// Must be top-level (not inside try/click handler) — strict mode forbids async fn declarations in blocks
+async function ocrRunVisionForJob(job, pdfDoc, eng) {
+  const { canvas, base64 } = await renderPageCanvas(pdfDoc, job.pageIdx + 1, dpi);
+  let res, visionOk = false;
+  if (eng === 'vision_only' || eng === 'vision_correction') {
+    res = await ocrPageWithGoogleVision(base64, state.googleApiKey);
+    visionOk = true;
+  } else {
+    res = await ocrPageWithTesseract(canvas);
+    visionOk = true;
+  }
+  res.canvasWidth = canvas.width;
+  res.canvasHeight = canvas.height;
+  return { res, base64, canvas, visionOk };
+}
+
 document.getElementById('run-batch-ocr').addEventListener('click', async () => {
   const scope = document.querySelector('input[name="ocr-scope"]:checked').value;
   const dpi = parseInt(document.getElementById('ocr-dpi').value);
@@ -1393,33 +1410,15 @@ document.getElementById('run-batch-ocr').addEventListener('click', async () => {
   correctionStats.ok = 0; correctionStats.fail = 0;
   correctionStats.consecutiveFail = 0; correctionStats.confirmed = false;
 
-  // Pipeline: Vision(N+1) fires while Gemini corrects page N
-  // Each step: render → vision → [gemini in bg] → save, with next render starting immediately after vision
-  async function runVisionForJob(job, pdfDoc, eng) {
-    const { canvas, base64 } = await renderPageCanvas(pdfDoc, job.pageIdx + 1, dpi);
-    let res, visionOk = false;
-    if (eng === 'vision_only' || eng === 'vision_correction') {
-      res = await ocrPageWithGoogleVision(base64, state.googleApiKey);
-      visionOk = true;
-    } else {
-      res = await ocrPageWithTesseract(canvas);
-      visionOk = true;
-    }
-    res.canvasWidth = canvas.width;
-    res.canvasHeight = canvas.height;
-    return { res, base64, canvas, visionOk };
-  }
-
   try {
-    let pdfDocCache = {};
-    async function getPdf(job) {
-      if (!pdfDocCache[job.product.id])
-        pdfDocCache[job.product.id] = await pdfjsLib.getDocument({ data: job.product.pdfBytes.slice() }).promise;
-      return pdfDocCache[job.product.id];
-    }
+    const pdfDocCache = {};
 
     // Pre-fire Vision for first page
-    let nextVisionPromise = getPdf(jobs[0]).then(doc => runVisionForJob(jobs[0], doc, engine));
+    let nextVisionPromise = (async () => {
+        if (!pdfDocCache[jobs[0].product.id])
+          pdfDocCache[jobs[0].product.id] = await pdfjsLib.getDocument({ data: jobs[0].product.pdfBytes.slice() }).promise;
+        return ocrRunVisionForJob(jobs[0], pdfDocCache[jobs[0].product.id], engine);
+      })();
 
     for (let jobIdx = 0; jobIdx < jobs.length; jobIdx++) {
       const job = jobs[jobIdx];
@@ -1442,7 +1441,9 @@ document.getElementById('run-batch-ocr').addEventListener('click', async () => {
           toast(`Vision quota hit — auto-switched to Tesseract.`, 'error');
           engine = 'tesseract_correction';
           document.getElementById('ocr-engine-select').value = 'tesseract_correction';
-          const doc = await getPdf(job);
+          if (!pdfDocCache[job.product.id])
+            pdfDocCache[job.product.id] = await pdfjsLib.getDocument({ data: job.product.pdfBytes.slice() }).promise;
+          const doc = pdfDocCache[job.product.id];
           const { canvas, base64 } = await renderPageCanvas(doc, job.pageIdx + 1, dpi);
           const r = await ocrPageWithTesseract(canvas);
           r.canvasWidth = canvas.width; r.canvasHeight = canvas.height;
@@ -1455,7 +1456,11 @@ document.getElementById('run-batch-ocr').addEventListener('click', async () => {
       // Fire Vision for NEXT page immediately — don't wait for Gemini
       const nextJob = jobs[jobIdx + 1];
       if (nextJob) {
-        nextVisionPromise = getPdf(nextJob).then(doc => runVisionForJob(nextJob, doc, engine));
+        nextVisionPromise = (async () => {
+          if (!pdfDocCache[nextJob.product.id])
+            pdfDocCache[nextJob.product.id] = await pdfjsLib.getDocument({ data: nextJob.product.pdfBytes.slice() }).promise;
+          return ocrRunVisionForJob(nextJob, pdfDocCache[nextJob.product.id], engine);
+        })();
       }
 
       // --- CORRECTION (runs while next page's Vision is already in flight) ---
