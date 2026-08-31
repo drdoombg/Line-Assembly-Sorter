@@ -177,7 +177,7 @@
     </svg>
   </div>
   <h1 id="app-title" title="Toggle API Keys">LineAssemblyHub</h1>
-  <span class="tag">v0.32</span>
+  <span class="tag">v0.33</span>
   <div class="status" id="storage-status" title="Browser local storage allocation">–</div>
   <span id="vision-badge" title="Google Vision API status" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Vision –</span>
   <span id="correction-badge" title="Correction API status (live-confirmed after first successful call)" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Correction –</span>
@@ -2233,64 +2233,57 @@ document.getElementById('mixing-download-btn').addEventListener('click', async (
 
       newDoc.addPage(copied);
 
-      // Embed invisible OCR text with correct coordinate mapping.
-      // Strategy: derive the total rotation purely from canvas vs PDF dims — no assumptions.
-      // Canvas was rendered with pg.rotation applied on top of the PDF's intrinsic rotation.
-      // cW/cH = actual pixel dims Vision saw. pdfW/pdfH = PDF's stored (unrotated) dims.
-      // We detect the effective rotation by comparing canvas and PDF aspect ratios.
+      // Embed invisible OCR text.
+      // ROOT CAUSE FIX: PDF viewers search text in the ROTATED coordinate space.
+      // After setRotation(90), the viewer's coordinate origin is at bottom-left of the
+      // LANDSCAPE view. So we must place text in landscape (rotated) coordinates directly.
+      //
+      // Rule: always map canvas pixels → the coordinate space the VIEWER sees.
+      // For rot=90 landscape view: viewer x goes left→right (=canvas x), viewer y goes bottom→top (=canvas y inverted).
+      // For rot=0: viewer x=canvas x left→right, viewer y=canvas y inverted (PDF bottom-up).
       if (pg.ocrResult && pg.ocrResult.words) {
         const addedPage = newDoc.getPages()[i];
         const { width: pdfW, height: pdfH } = addedPage.getSize();
         const ocr = pg.ocrResult;
-        const cW = ocr.canvasWidth;
-        const cH = ocr.canvasHeight;
-
-        // Determine effective rotation: if canvas is landscape but PDF is portrait (or vice versa),
-        // we know a 90/270 rotation is in effect. Use pg.rotation to disambiguate 90 vs 270.
-        const canvasIsLandscape = cW > cH;
-        const pdfIsPortrait = pdfW < pdfH;
+        const cW = ocr.canvasWidth;   // canvas width = viewer display width
+        const cH = ocr.canvasHeight;  // canvas height = viewer display height
         const rotMod = ((pg.rotation % 360) + 360) % 360;
+
+        // viewW/viewH = dimensions of the space the viewer displays (= canvas dims)
+        // For rot 90/270: PDF stores portrait but viewer shows landscape
+        // We must tell PDFLib to draw in landscape space — use the canvas dims as reference
+        const viewW = cW;  // what the viewer considers "width"
+        const viewH = cH;  // what the viewer considers "height"
 
         for (const w of ocr.words) {
           if (!w.text || !w.text.trim() || !w.bbox) continue;
           const { x0, y0, x1, y1 } = w.bbox;
           const wordH_c = y1 - y0;
-          let px, py, fontSize;
 
-          if (canvasIsLandscape && pdfIsPortrait) {
-            // Canvas landscape, PDF portrait — 90° or 270° effective rotation
-            // fontSize relative to the shorter PDF dim (pdfW = portrait width)
-            fontSize = Math.max(4, (wordH_c / cH) * pdfW * 0.9);
-            if (rotMod === 90 || rotMod === 0) {
-              // 90° CW: canvas-x → PDF y (bottom of portrait = left of landscape view)
-              // canvas-y → PDF x
-              px = (y0 / cH) * pdfW;
-              py = pdfH - (x0 / cW) * pdfH;
-            } else {
-              // 270° CW: canvas-x → PDF y (inverted), canvas-y → PDF x (inverted)
-              px = pdfW - (y0 / cH) * pdfW;
-              py = (x0 / cW) * pdfH;
-            }
-          } else if (!canvasIsLandscape && !pdfIsPortrait) {
-            // Canvas portrait, PDF landscape — also 90/270 but opposite
-            fontSize = Math.max(4, (wordH_c / cH) * pdfH * 0.9);
-            if (rotMod === 90 || rotMod === 0) {
-              px = (y0 / cH) * pdfW;
-              py = pdfH - (x0 / cW) * pdfH;
-            } else {
-              px = pdfW - (y0 / cH) * pdfW;
-              py = (x0 / cW) * pdfH;
-            }
+          // Map canvas pixels to viewer point coordinates
+          // Scale canvas pixels to PDF points using the canvas→viewer ratio
+          const scaleX = (rotMod === 90 || rotMod === 270) ? pdfH / cW : pdfW / cW;
+          const scaleY = (rotMod === 90 || rotMod === 270) ? pdfW / cH : pdfH / cH;
+          const fontSize = Math.max(4, wordH_c * scaleY * 0.9);
+
+          // Canvas: origin top-left, y increases downward
+          // PDF viewer: origin bottom-left, y increases upward → invert y
+          let px, py;
+          if (rotMod === 90) {
+            // Viewer shows landscape: x→right along long edge, y→up along short edge
+            // canvas-x maps to viewer-x, canvas-y maps to viewer-y (inverted)
+            px = x0 * scaleX;
+            py = viewH * scaleY - y0 * scaleY;
+          } else if (rotMod === 270) {
+            px = (viewW - x1) * scaleX;
+            py = y0 * scaleY;
           } else if (rotMod === 180) {
-            // 180°: canvas matches PDF dims but everything is flipped
-            fontSize = Math.max(4, (wordH_c / cH) * pdfH * 0.9);
-            px = pdfW - (x0 / cW) * pdfW;
-            py = (y0 / cH) * pdfH;
+            px = (viewW - x0) * scaleX;
+            py = y0 * scaleY;
           } else {
-            // 0°: canvas and PDF align directly
-            fontSize = Math.max(4, (wordH_c / cH) * pdfH * 0.9);
-            px = (x0 / cW) * pdfW;
-            py = pdfH - (y0 / cH) * pdfH - (wordH_c / cH) * pdfH;
+            // rot=0: standard portrait, just invert y
+            px = x0 * scaleX;
+            py = viewH * scaleY - y0 * scaleY;
           }
 
           try { addedPage.drawText(w.text, { x: px, y: py, size: fontSize, font: helv, color: PDFLib.rgb(0,0,0), opacity: 0 }); } catch(_) {}
