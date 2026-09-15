@@ -186,7 +186,7 @@
     </svg>
   </div>
   <h1 id="app-title" title="Toggle API Keys">LineAssemblyHub</h1>
-  <span class="tag">v0.42</span>
+  <span class="tag">v0.43</span>
   <div class="status" id="storage-status" title="Browser local storage allocation">–</div>
   <span id="vision-badge" title="Google Vision API status" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Vision –</span>
   <span id="correction-badge" title="Correction API status (live-confirmed after first successful call)" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Correction –</span>
@@ -246,6 +246,7 @@
           <button class="btn small" id="import-existing" title="Import existing PDFs and their pages">Import PDFs</button>
           <button class="btn small" id="show-add-product">+ Add</button>
           <button class="btn small primary" id="merge-btn" disabled>Merge</button>
+          <button class="btn small" id="operate-btn" disabled title="Merge → Vision Only OCR (new pages only) → Download &amp; Replace All" style="background:#7c3aed;color:#fff;border-color:#7c3aed;">⚡ Operate</button>
           <button class="btn small" id="download-all-pre-ocr" title="Download all PDFs sequentially">Download All</button>
           <button class="btn small danger" id="clear-all-products" title="Wipe all products for a new month">Clear All</button>
         </div>
@@ -451,12 +452,10 @@ function openDB() {
     req.onblocked = () => { toast('Database blocked — close other tabs and reload', 'error'); reject(new Error('DB blocked')); };
   });
 }
-
 async function ensureDB() {
   if (!db) await openDB();
   return db;
 }
-
 async function dbGet(store, key) {
   await ensureDB();
   return new Promise((res, rej) => {
@@ -768,6 +767,7 @@ async function handleAssignChange(e) {
 function updateMergeButton() {
   const anyAssigned = state.scan && state.scan.pages.some(p => p.assignedProductId);
   document.getElementById('merge-btn').disabled = !anyAssigned;
+  document.getElementById('operate-btn').disabled = !anyAssigned;
 }
 
 function showZoom(sourceCanvas) {
@@ -1038,6 +1038,56 @@ async function isPageBlank(pdfjsDoc, pageNum) {
   return (nearWhitePixels / (totalPixels / 4)) >= 0.985;
 }
 
+// ── OPERATE: Merge → Vision Only OCR (new pages) → Download & Replace All ──
+// Uses a simple completion signal: each handler sets window._operateDone when finished
+document.getElementById('operate-btn').addEventListener('click', async () => {
+  if (!state.googleApiKey) { toast('Vision Key required — click the logo to add it', 'error'); return; }
+  
+  const operateBtn = document.getElementById('operate-btn');
+  operateBtn.disabled = true;
+  operateBtn.textContent = '⚡ Running…';
+
+  try {
+    // Step 1: Merge
+    toast('⚡ Operate 1/3 — Merging…');
+    window._operatePromise = null;
+    window._operatePromise = new Promise(res => { window._operateMergeResolve = res; });
+    document.getElementById('merge-btn').click();
+    await window._operatePromise;
+    await new Promise(r => setTimeout(r, 600)); // let UI settle
+
+    // Step 2: OCR — switch engine to Vision Only, run new-pages-only
+    toast('⚡ Operate 2/3 — OCR (Vision Only, new pages)…');
+    const engineSel = document.getElementById('ocr-engine-select');
+    const prevEngine = engineSel.value;
+    engineSel.value = 'vision_only';
+    const newOnlyChk = document.getElementById('new-pages-only');
+    const prevChecked = newOnlyChk ? newOnlyChk.checked : true;
+    if (newOnlyChk) newOnlyChk.checked = true;
+    window._operatePromise = new Promise(res => { window._operateOcrResolve = res; });
+    document.getElementById('run-batch-ocr').click();
+    await window._operatePromise;
+    // Restore engine selection
+    engineSel.value = prevEngine;
+    if (newOnlyChk) newOnlyChk.checked = prevChecked;
+    await new Promise(r => setTimeout(r, 600));
+
+    // Step 3: Download & Replace All
+    toast('⚡ Operate 3/3 — Downloading & replacing…');
+    window._operatePromise = new Promise(res => { window._operateDownloadResolve = res; });
+    document.getElementById('download-replace-all').click();
+    await window._operatePromise;
+
+    toast('⚡ Operate complete ✓', 'success');
+  } catch(e) {
+    toast('⚡ Operate failed: ' + e.message, 'error');
+    console.error('[Operate]', e);
+  } finally {
+    operateBtn.disabled = false;
+    operateBtn.textContent = '⚡ Operate';
+  }
+});
+
 document.getElementById('merge-btn').addEventListener('click', async () => {
   if (!state.scan) return;
   const byProduct = {};
@@ -1111,6 +1161,7 @@ document.getElementById('merge-btn').addEventListener('click', async () => {
 
   const dropNotice = droppedBlankPages > 0 ? ` (Dropped ${droppedBlankPages} blank page${droppedBlankPages > 1 ? 's' : ''} globally)` : '';
   toast(`Merged ${mergedPages} pages into ${Object.keys(byProduct).length} products${dropNotice}.`, 'success');
+  if (window._operateMergeResolve) { window._operateMergeResolve(); window._operateMergeResolve = null; }
 
   state.scan = null;
   document.getElementById('thumbs').innerHTML = '';
@@ -1129,8 +1180,28 @@ if (!supportsFSA) document.getElementById('connect-folder-btn').title = 'Not sup
 document.getElementById('connect-folder-btn').addEventListener('click', async () => {
   if (!supportsFSA) { toast('Needs Chrome or Edge desktop', 'error'); return; }
   try {
+    // If a folder was previously connected and just needs permission re-grant (user gesture required)
+    if (window._pendingFolderHandle) {
+      const perm = await window._pendingFolderHandle.requestPermission({ mode: 'readwrite' });
+      if (perm === 'granted') {
+        folderHandle = window._pendingFolderHandle;
+        window._pendingFolderHandle = null;
+        updateFolderStatus();
+        toast('Folder reconnected: ' + folderHandle.name + ' — no re-import needed', 'success');
+        return;
+      }
+      window._pendingFolderHandle = null; // failed — fall through to picker
+    }
+    // Fresh connect
     folderHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
-    try { await dbPut('settings', { key: 'folderHandle', value: folderHandle }); } catch(_){}
+    try { 
+      await dbPut('settings', { key: 'folderHandle', value: folderHandle });
+      console.log('[Folder] Handle saved to DB for', folderHandle.name);
+    } catch(err) { 
+      console.warn('[Folder] Could not save handle to DB:', err.message);
+      // Fallback: store folder name only so we can show it on next load
+      try { await dbPut('settings', { key: 'folderName', value: folderHandle.name }); } catch(_) {}
+    }
     await loadProductsFromFolder();
     updateFolderStatus();
   } catch(err) {
@@ -1154,37 +1225,64 @@ async function checkFolderConnection() {
   }
 }
 
-async function loadProductsFromFolder() {
+async function loadProductsFromFolder(forceReload = false) {
   if (!folderHandle) return;
   toast('Reading folder…');
-  let loaded = 0, updated = 0;
+  let loaded = 0, skipped = 0, updated = 0;
+
   for await (const [name, handle] of folderHandle.entries()) {
     if (handle.kind !== 'file' || !name.toLowerCase().endsWith('.pdf')) continue;
     try {
+      // Get file metadata first — this is fast even over a network drive
       const file = await handle.getFile();
+      const productName = name.replace(/\.pdf$/i, '').trim();
+      const existing = state.products.find(p => p.name === productName || p.sourceFileName === name);
+
+      // Skip if already in DB and file hasn't changed since last load
+      // file.lastModified is a timestamp in ms — compare to stored value
+      if (!forceReload && existing && existing.pdfBytes && existing.pdfBytes.length > 100
+          && existing.folderLastModified && existing.folderLastModified === file.lastModified) {
+        skipped++;
+        continue; // Already up to date — no need to read bytes
+      }
+
+      // File is new or changed — read the full bytes
       const bytes = new Uint8Array(await file.arrayBuffer());
       const doc = await pdfjsLib.getDocument({ data: bytes.slice() }).promise;
-      
       const ocrMap = await countExistingOcrLayers(bytes);
-      
-      const productName = name.replace(/\.pdf$/i, '').trim();
-      const existing = state.products.find(p => p.name === productName);
-      
+
       if (existing) {
-        existing.pdfBytes = bytes; existing.pageCount = doc.numPages;
+        existing.pdfBytes = bytes;
+        existing.pageCount = doc.numPages;
         existing.ocrByPage = ocrMap;
-        existing.lastUpdated = new Date().toISOString(); existing.sourceFileName = name;
-        await dbPut('products', existing); updated++;
+        existing.lastUpdated = new Date().toISOString();
+        existing.sourceFileName = name;
+        existing.folderLastModified = file.lastModified;
+        await dbPut('products', existing);
+        updated++;
       } else {
-        const product = { id: uid(), name: productName, pdfBytes: bytes, pageCount: doc.numPages, ocrByPage: ocrMap, lastUpdated: new Date().toISOString(), sourceFileName: name };
-        state.products.push(product); await dbPut('products', product); loaded++;
+        const product = {
+          id: uid(), name: productName, pdfBytes: bytes,
+          pageCount: doc.numPages, ocrByPage: ocrMap,
+          lastUpdated: new Date().toISOString(),
+          sourceFileName: name, folderLastModified: file.lastModified
+        };
+        state.products.push(product);
+        await dbPut('products', product);
+        loaded++;
       }
-    } catch(err) { console.error(err); }
+    } catch(err) { console.error('[Folder load]', name, err); }
   }
+
   updateProductsList();
   if (state.scan) refreshThumbSelects();
   updateStorageStatus();
-  toast(`Folder: ${loaded} new · ${updated} updated`, 'success');
+
+  const parts = [];
+  if (loaded) parts.push(`${loaded} new`);
+  if (updated) parts.push(`${updated} updated`);
+  if (skipped) parts.push(`${skipped} unchanged (skipped)`);
+  toast('Folder: ' + (parts.length ? parts.join(' · ') : 'no changes'), 'success');
 }
 
 async function saveProductToFolder(product, bytes) {
@@ -1195,6 +1293,12 @@ async function saveProductToFolder(product, bytes) {
     const w = await fileHandle.createWritable();
     await w.write(bytes || product.pdfBytes);
     await w.close();
+    // Read back the file's new lastModified so next folder load skips it (unchanged)
+    try {
+      const savedFile = await fileHandle.getFile();
+      product.folderLastModified = savedFile.lastModified;
+      await dbPut('products', product);
+    } catch(_) {}
     return true;
   } catch(err) { console.error(err); return false; }
 }
@@ -1204,9 +1308,33 @@ async function restoreFolderHandle() {
   try {
     const stored = await dbGet('settings', 'folderHandle');
     if (stored && stored.value) {
-      const perm = await stored.value.queryPermission({ mode: 'readwrite' });
-      if (perm === 'granted') { folderHandle = stored.value; updateFolderStatus(); }
-      else { document.getElementById('connect-folder-btn').textContent = '📁 Reconnect ' + stored.value.name; }
+      let perm;
+      try { perm = await stored.value.queryPermission({ mode: 'readwrite' }); } catch(_) { perm = 'prompt'; }
+      console.log('[Folder] Stored handle found, permission:', perm, 'name:', stored.value.name);
+      if (perm === 'granted') {
+        folderHandle = stored.value;
+        updateFolderStatus();
+        return;
+      } else {
+        // Show amber reconnect button — one click re-grants without folder picker
+        const btn = document.getElementById('connect-folder-btn');
+        btn.textContent = '📁 Reconnect: ' + stored.value.name;
+        btn.style.background = '#b45309';
+        btn.style.borderColor = '#b45309';
+        window._pendingFolderHandle = stored.value;
+        return;
+      }
+    }
+  } catch(err) { console.warn('[Folder] Handle restore failed:', err.message); }
+
+  // Fallback: no handle stored but we have the name — show reconnect prompt
+  try {
+    const nameStored = await dbGet('settings', 'folderName');
+    if (nameStored && nameStored.value) {
+      const btn = document.getElementById('connect-folder-btn');
+      btn.textContent = '📁 Reconnect: ' + nameStored.value;
+      btn.style.background = '#b45309';
+      btn.style.borderColor = '#b45309';
     }
   } catch(_) {}
 }
@@ -1596,6 +1724,7 @@ document.getElementById('run-batch-ocr').addEventListener('click', async () => {
     }
     const toastType = (selectedEngine !== 'vision_only' && correctionStats.ok === 0 && correctionStats.fail > 0) ? 'error' : 'success';
     toast(`OCR complete: ${done} pages. ${corrSummary}`, toastType);
+    if (window._operateOcrResolve) { window._operateOcrResolve(); window._operateOcrResolve = null; }
   } catch(err) {
     console.error(err);
     hideBatchProgress();
@@ -1668,6 +1797,7 @@ document.getElementById('download-replace-all').addEventListener('click', async 
 
   if (saved > 0 && downloaded === 0) toast(`Saved ${saved} searchable PDFs to folder`, 'success');
   else if (saved > 0 && downloaded > 0) toast(`Saved ${saved} to folder, fallback downloaded ${downloaded}`, 'success');
+  if (window._operateDownloadResolve) { window._operateDownloadResolve(); window._operateDownloadResolve = null; }
   else toast(`Downloaded ${downloaded} searchable PDFs`, 'success');
 });
 
@@ -2353,7 +2483,32 @@ async function renderMixingThumbs(fileIdx) {
 
     const label = document.createElement('div');
     label.className = 'page-num';
-    label.textContent = `p.${i+1}${pg.rotation ? ' · ' + pg.rotation + '°' : ''}`;
+    label.style.display = 'flex';
+    label.style.justifyContent = 'space-between';
+    label.style.alignItems = 'center';
+
+    const labelText = document.createElement('span');
+    labelText.textContent = `p.${i+1}${pg.rotation ? ' · ' + pg.rotation + '°' : ''}`;
+    label.appendChild(labelText);
+
+    const removePageBtn = document.createElement('button');
+    removePageBtn.className = 'btn small danger';
+    removePageBtn.style.fontSize = '10px';
+    removePageBtn.style.padding = '1px 6px';
+    removePageBtn.style.lineHeight = '1.4';
+    removePageBtn.title = 'Remove this page';
+    removePageBtn.textContent = '✕';
+    removePageBtn.onclick = (e) => {
+      e.stopPropagation();
+      const entry = mixingQueue[fileIdx];
+      if (!entry) return;
+      entry.pages.splice(i, 1);
+      // Re-render thumbs with updated page list
+      renderMixingThumbs(fileIdx);
+      renderMixingFileList();
+    };
+    label.appendChild(removePageBtn);
+
     div.appendChild(label);
 
     thumbsEl.appendChild(div);
