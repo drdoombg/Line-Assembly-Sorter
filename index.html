@@ -1180,28 +1180,8 @@ if (!supportsFSA) document.getElementById('connect-folder-btn').title = 'Not sup
 document.getElementById('connect-folder-btn').addEventListener('click', async () => {
   if (!supportsFSA) { toast('Needs Chrome or Edge desktop', 'error'); return; }
   try {
-    // If a folder was previously connected and just needs permission re-grant (user gesture required)
-    if (window._pendingFolderHandle) {
-      const perm = await window._pendingFolderHandle.requestPermission({ mode: 'readwrite' });
-      if (perm === 'granted') {
-        folderHandle = window._pendingFolderHandle;
-        window._pendingFolderHandle = null;
-        updateFolderStatus();
-        toast('Folder reconnected: ' + folderHandle.name + ' — no re-import needed', 'success');
-        return;
-      }
-      window._pendingFolderHandle = null; // failed — fall through to picker
-    }
-    // Fresh connect
     folderHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
-    try { 
-      await dbPut('settings', { key: 'folderHandle', value: folderHandle });
-      console.log('[Folder] Handle saved to DB for', folderHandle.name);
-    } catch(err) { 
-      console.warn('[Folder] Could not save handle to DB:', err.message);
-      // Fallback: store folder name only so we can show it on next load
-      try { await dbPut('settings', { key: 'folderName', value: folderHandle.name }); } catch(_) {}
-    }
+    try { await dbPut('settings', { key: 'folderHandle', value: folderHandle }); } catch(_){}
     await loadProductsFromFolder();
     updateFolderStatus();
   } catch(err) {
@@ -1308,33 +1288,9 @@ async function restoreFolderHandle() {
   try {
     const stored = await dbGet('settings', 'folderHandle');
     if (stored && stored.value) {
-      let perm;
-      try { perm = await stored.value.queryPermission({ mode: 'readwrite' }); } catch(_) { perm = 'prompt'; }
-      console.log('[Folder] Stored handle found, permission:', perm, 'name:', stored.value.name);
-      if (perm === 'granted') {
-        folderHandle = stored.value;
-        updateFolderStatus();
-        return;
-      } else {
-        // Show amber reconnect button — one click re-grants without folder picker
-        const btn = document.getElementById('connect-folder-btn');
-        btn.textContent = '📁 Reconnect: ' + stored.value.name;
-        btn.style.background = '#b45309';
-        btn.style.borderColor = '#b45309';
-        window._pendingFolderHandle = stored.value;
-        return;
-      }
-    }
-  } catch(err) { console.warn('[Folder] Handle restore failed:', err.message); }
-
-  // Fallback: no handle stored but we have the name — show reconnect prompt
-  try {
-    const nameStored = await dbGet('settings', 'folderName');
-    if (nameStored && nameStored.value) {
-      const btn = document.getElementById('connect-folder-btn');
-      btn.textContent = '📁 Reconnect: ' + nameStored.value;
-      btn.style.background = '#b45309';
-      btn.style.borderColor = '#b45309';
+      const perm = await stored.value.queryPermission({ mode: 'readwrite' });
+      if (perm === 'granted') { folderHandle = stored.value; updateFolderStatus(); }
+      else { document.getElementById('connect-folder-btn').textContent = '📁 Reconnect ' + stored.value.name; }
     }
   } catch(_) {}
 }
