@@ -93,8 +93,8 @@
   #picker-search { flex: 1; padding: 7px 10px; font-size: 13px; border: 2px solid #d6d3d1; border-radius: 4px; }
   #picker-search:focus { outline: none; border-color: #0f766e; }
   #picker-head .hint { font-size: 11px; color: #a8a29e; white-space: nowrap; }
-  #picker-grid { overflow-y: auto; padding: 10px; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 4px; }
-  .pick { text-align: left; padding: 6px 9px; border: 1px solid #e7e5e4; border-radius: 4px; background: #fafaf9; font-size: 12.5px; cursor: pointer; line-height: 1.3; color: #1c1917; }
+  #picker-grid { overflow-y: auto; padding: 10px; columns: 230px; column-gap: 4px; }
+  .pick { display: block; width: 100%; margin: 0 0 4px; break-inside: avoid; text-align: left; padding: 6px 9px; border: 1px solid #e7e5e4; border-radius: 4px; background: #fafaf9; font-size: 12.5px; cursor: pointer; line-height: 1.3; color: #1c1917; }
   .pick:hover, .pick.first { border-color: #0f766e; background: #ecfdf5; }
   .pick.current { background: #ccfbf1; border-color: #0f766e; font-weight: 600; }
   .pick.special { color: #0f766e; font-weight: 600; }
@@ -214,7 +214,7 @@
     </svg>
   </div>
   <h1 id="app-title" title="Toggle API Keys">LineAssemblyHub</h1>
-  <span class="tag">v44</span>
+  <span class="tag">v45</span>
   <div class="status" id="storage-status" title="Browser local storage allocation">–</div>
   <span id="vision-badge" title="Google Vision API status" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Vision –</span>
   <span id="correction-badge" title="Correction API status (live-confirmed after first successful call)" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Correction –</span>
@@ -949,14 +949,10 @@ function renderPickerGrid(q) {
   const products = [...state.products].sort((a, b) => a.name.localeCompare(b.name))
     .filter(p => words.every(w => p.name.toLowerCase().includes(w)));
   let html = '';
-  if (!words.length) {
-    html += `<button class="pick special" data-v="">— unassigned —</button>`;
-    html += `<button class="pick special" data-v="__new__">+ New product from this page…</button>`;
-  }
   html += products.map(p => `<button class="pick${p.id === current ? ' current' : ''}" data-v="${p.id}">${formatBrandColor(p.name)}</button>`).join('');
   if (words.length && !products.length) html = `<div style="padding:12px;color:#78716c;font-size:13px;">No product matches “${escapeHtml(q)}”.</div>`;
   grid.innerHTML = html;
-  const firstProduct = grid.querySelector('.pick:not(.special)');
+  const firstProduct = grid.querySelector('.pick');
   if (words.length && firstProduct) firstProduct.classList.add('first');
 }
 function pickValue(v) {
@@ -969,7 +965,7 @@ function pickValue(v) {
 document.getElementById('picker-search').addEventListener('input', (e) => renderPickerGrid(e.target.value));
 document.getElementById('picker-search').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {
-    const first = document.querySelector('#picker-grid .pick.first') || document.querySelector('#picker-grid .pick:not(.special)');
+    const first = document.querySelector('#picker-grid .pick.first') || document.querySelector('#picker-grid .pick');
     if (first) pickValue(first.dataset.v);
   }
 });
