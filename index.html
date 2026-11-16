@@ -85,9 +85,9 @@
   .assign-btn:hover { border-color: #0f766e; }
   .assign-btn .caret { color: #a8a29e; flex-shrink: 0; }
   .thumb.assigned .assign-btn { border-color: #0f766e; background: #f0fdfa; }
-  #picker { position: fixed; inset: 0; background: rgba(15,23,42,0.45); z-index: 2500; display: none; align-items: center; justify-content: center; padding: 2vh 2vw; }
-  #picker.show { display: flex; }
-  #picker-box { background: #fff; border-radius: 8px; width: min(1400px, 96vw); max-height: 96vh; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,0.35); }
+  #picker { position: fixed; inset: 0; background: rgba(15,23,42,0.12); z-index: 2500; display: none; }
+  #picker.show { display: block; }
+  #picker-box { position: absolute; background: #fff; border-radius: 8px; border: 1px solid #d6d3d1; display: flex; flex-direction: column; box-shadow: 0 14px 40px rgba(0,0,0,0.28); }
   #picker-head { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-bottom: 1px solid #e7e5e4; }
   #picker-title { font-size: 13px; font-weight: 600; color: #44403c; white-space: nowrap; }
   #picker-search { flex: 1; padding: 7px 10px; font-size: 13px; border: 2px solid #d6d3d1; border-radius: 4px; }
@@ -98,6 +98,53 @@
   .pick:hover, .pick.first { border-color: #0f766e; background: #ecfdf5; }
   .pick.current { background: #ccfbf1; border-color: #0f766e; font-weight: 600; }
   .pick.special { color: #0f766e; font-weight: 600; }
+
+  /* Auto Upload */
+  #tab-auto { flex-direction: column; overflow-y: auto; background: #fafaf9; }
+  #auto-body { padding: 14px 16px; max-width: 1150px; width: 100%; }
+  #auto-dropzone { border: 2px dashed #a8a29e; border-radius: 6px; padding: 34px 20px; text-align: center; color: #57534e; background: #fff; cursor: pointer; }
+  #auto-dropzone.dragover { background: #ecfeff; border-color: #0f766e; color: #0f766e; }
+  #auto-dropzone .hint { font-size: 12px; color: #78716c; }
+  #auto-progress { margin-top: 12px; padding: 10px 14px; background: #0f172a; color: #f8fafc; border-radius: 6px; font-size: 12.5px; }
+  #auto-progress .progress-meta { display: flex; justify-content: space-between; }
+  #auto-progress-pct { color: #14b8a6; font-weight: 700; }
+  #auto-progress .bar { background: #1e293b; height: 10px; border-radius: 5px; margin-top: 6px; overflow: hidden; }
+  #auto-progress .bar-fill { background: linear-gradient(90deg, #0f766e, #14b8a6); height: 100%; width: 0; transition: width 0.3s; }
+  #auto-files { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+  .auto-file { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 12px; background: #fff; border: 1px solid #e7e5e4; border-radius: 5px; font-size: 12.5px; }
+  .auto-fname { font-weight: 600; color: #1c1917; word-break: break-all; }
+  .auto-type { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; background: #e7e5e4; color: #44403c; }
+  .auto-type.t-la { background: #dbeafe; color: #1e3a8a; }
+  .auto-type.t-mixing { background: #fef3c7; color: #78350f; }
+  .auto-type.t-unknown { background: #fee2e2; color: #7f1d1d; }
+  .auto-fstatus { color: #57534e; flex: 1; }
+  #auto-summary { margin-top: 14px; display: flex; flex-direction: column; gap: 12px; }
+  .auto-block { background: #fff; border: 1px solid #e7e5e4; border-radius: 6px; padding: 12px 14px; font-size: 13px; }
+  .auto-block h3 { font-size: 13px; margin-bottom: 8px; color: #292524; }
+  .auto-counts { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .auto-counts span { font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 10px; }
+  .c-green { background: #dcfce7; color: #14532d; } .c-amber { background: #fef3c7; color: #78350f; } .c-red { background: #fee2e2; color: #7f1d1d; } .c-user { background: #e0e7ff; color: #312e81; }
+  .auto-flags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .auto-flag { font-size: 12px; padding: 5px 9px; border-radius: 4px; cursor: pointer; border: 1px solid; text-align: left; }
+  .auto-flag.f-amber { background: #fffbeb; border-color: #f59e0b; color: #78350f; }
+  .auto-flag.f-red { background: #fef2f2; border-color: #ef4444; color: #7f1d1d; }
+  .auto-ok { color: #57534e; font-size: 12px; margin-bottom: 10px; }
+  .auto-mix { padding: 6px 10px; border-radius: 4px; margin-bottom: 6px; font-size: 12.5px; }
+  .auto-mix.ok { background: #f0fdf4; color: #14532d; } .auto-mix.warn { background: #fffbeb; color: #78350f; }
+  .auto-badge { margin-top: 6px; font-size: 11.5px; line-height: 1.35; padding: 5px 8px; border-radius: 4px; display: flex; flex-direction: column; gap: 2px; }
+  .auto-badge .auto-lvl { font-weight: 700; }
+  .auto-badge .auto-why { color: #44403c; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .auto-badge.green { background: #dcfce7; color: #14532d; } .auto-badge.amber { background: #fef3c7; color: #78350f; }
+  .auto-badge.red { background: #fee2e2; color: #7f1d1d; } .auto-badge.user { background: #e0e7ff; color: #312e81; }
+  .thumb.auto-amber { border-color: #f59e0b; box-shadow: 0 0 0 1px #f59e0b; }
+  .thumb.auto-red { border-color: #ef4444; box-shadow: 0 0 0 1px #ef4444; }
+  .thumb.flash { animation: thumbflash 1.6s ease; }
+  @keyframes thumbflash { 0%, 60% { box-shadow: 0 0 0 4px #7c3aed; } 100% { box-shadow: none; } }
+  .mix-save { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #44403c; margin-top: 2px; }
+  .mix-save input { width: 72px; padding: 2px 5px; font-size: 12px; border: 1px solid #d6d3d1; border-radius: 3px; font-weight: 600; }
+  .mix-save input.missing { border-color: #ef4444; background: #fef2f2; }
+  .mix-fdate { font-size: 10.5px; color: #78716c; }
+  .mix-fdate.warn { color: #b45309; font-weight: 600; }
 
   /* Persistent Operate result */
   #operate-status { display: none; align-items: flex-start; gap: 10px; padding: 9px 16px; font-size: 12.5px; border-bottom: 1px solid; line-height: 1.45; }
@@ -214,7 +261,7 @@
     </svg>
   </div>
   <h1 id="app-title" title="Toggle API Keys">LineAssemblyHub</h1>
-  <span class="tag">v45</span>
+  <span class="tag">v46</span>
   <div class="status" id="storage-status" title="Browser local storage allocation">–</div>
   <span id="vision-badge" title="Google Vision API status" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Vision –</span>
   <span id="correction-badge" title="Correction API status (live-confirmed after first successful call)" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Correction –</span>
@@ -232,7 +279,8 @@
 </div>
 
 <nav class="tabs">
-  <button class="tab-btn active" data-tab="route">Route &amp; Merge</button>
+  <button class="tab-btn active" data-tab="auto">Auto Upload</button>
+  <button class="tab-btn" data-tab="route">Route &amp; Merge</button>
   <button class="tab-btn" data-tab="ocr">Convert to OCR</button>
   <button class="tab-btn" data-tab="mixing">Mixing Batch Records</button>
   <button class="tab-btn" data-tab="search">Search</button>
@@ -250,7 +298,29 @@
 </div>
 
 <main>
-  <section class="tab-content active" id="tab-route">
+  <!-- AUTO UPLOAD TAB (added layer: fills Route & Merge and Mixing, the other tabs work as before) -->
+  <section class="tab-content active" id="tab-auto">
+    <div class="panel-header">
+      <h2>Auto Upload</h2>
+      <div class="actions"><button class="btn small" id="auto-clear">Clear list</button></div>
+    </div>
+    <div id="auto-body">
+      <div id="auto-dropzone">
+        <p><strong>Drop today's scans here — Line Assembly and Mixing, as many files as you like</strong></p>
+        <p class="hint">or click to browse</p>
+        <p class="hint" style="margin-top:10px;">Line Assembly pages are read and pre-sorted in Route &amp; Merge. Mixing pages are turned, read and named by their date in the Mixing tab. You check both, then press ⚡ Operate.</p>
+      </div>
+      <input type="file" id="auto-input" accept="application/pdf" multiple class="hidden">
+      <div id="auto-progress" style="display:none;">
+        <div class="progress-meta"><span id="auto-progress-text">–</span><span id="auto-progress-pct">0%</span></div>
+        <div class="bar"><div class="bar-fill" id="auto-progress-bar"></div></div>
+      </div>
+      <div id="auto-files"></div>
+      <div id="auto-summary"></div>
+    </div>
+  </section>
+
+  <section class="tab-content" id="tab-route">
     <div id="route-scan-panel">
       <div class="panel-header">
         <h2>Today's scan</h2>
@@ -358,10 +428,6 @@
           <option value="vision_only" selected>Vision Only (fast)</option>
           <option value="vision_correction">Vision + Correction</option>
         </select>
-        <label for="mixing-name-input" style="font-size:12px;color:#57534e;font-weight:500;margin-left:6px;">Save as:</label>
-        <input type="text" id="mixing-name-input" placeholder="e.g. 03.11" autocomplete="off"
-          title="File name for today's Mixing Batch Records — saved into the 'Mixing Batch Records' folder inside the connected month folder"
-          style="width:110px;padding:5px 8px;font-size:12px;border:1px solid #d6d3d1;border-radius:4px;">
         <button class="btn small" id="mixing-add-btn">+ Add Files</button>
         <button class="btn small" id="mixing-clear-btn">Clear All</button>
         <button class="btn small primary" id="mixing-ocr-btn" disabled>Run OCR on All</button>
@@ -643,6 +709,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.classList.add('active');
     document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
     if (btn.dataset.tab === 'ocr') refreshOcrTab();
+    if (btn.dataset.tab === 'auto') renderAutoSummary();
     if (btn.dataset.tab === 'search') refreshSearchMeta();
     if (btn.dataset.tab === 'mixing') {
       if (mixingQueue.length === 0) {
@@ -705,7 +772,7 @@ async function renderThumbs() {
     canvas.width = viewport.width;
     canvas.height = viewport.height;
     const ctx = canvas.getContext('2d');
-    await page.render({ canvasContext: ctx, viewport }).promise;
+    await page.render({ intent: 'print', canvasContext: ctx, viewport }).promise;
 
     const div = document.createElement('div');
     div.className = 'thumb';
@@ -756,6 +823,7 @@ async function renderThumbs() {
 
     thumbsEl.appendChild(div);
     state.scan.pages.push({ index: i - 1, assignedProductId: null, rotation: 0 });
+    if (state.scan.auto) applyAutoToThumb(i - 1);
   }
 }
 
@@ -772,8 +840,11 @@ function refreshThumbSelects() {
 }
 
 async function handleAssignChange(e) {
+  const idx = parseInt(e.target.dataset.pageIdx);
+  if (state.scan && state.scan.pages[idx]) state.scan.pages[idx].userSet = true;
   await handleAssignChangeInner(e);
   syncAssignBtn(e.target);
+  if (state.scan && state.scan.auto) { applyAutoToThumb(idx); renderAutoSummary(); }
 }
 async function handleAssignChangeInner(e) {
   const idx = parseInt(e.target.dataset.pageIdx);
@@ -862,7 +933,7 @@ async function openViewer(pdfDoc, pageNum, rotation = 0) {
     off.width = vp.width; off.height = vp.height;
     const ctx = off.getContext('2d');
     ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, off.width, off.height);
-    await page.render({ canvasContext: ctx, viewport: vp }).promise;
+    await page.render({ intent: 'print', canvasContext: ctx, viewport: vp }).promise;
     if (token !== viewer.token || !el.classList.contains('show')) return;
     vCanvas.width = off.width; vCanvas.height = off.height;
     vCanvas.getContext('2d').drawImage(off, 0, 0);
@@ -889,7 +960,7 @@ vStage.addEventListener('wheel', (e) => {
 }, { passive: false });
 let vDrag = null;
 vStage.addEventListener('pointerdown', (e) => {
-  vDrag = { x: e.clientX, y: e.clientY, ox: viewer.x, oy: viewer.y };
+  vDrag = { x: e.clientX, y: e.clientY, ox: viewer.x, oy: viewer.y, onPage: e.target === vCanvas };
   vStage.setPointerCapture(e.pointerId);
   vStage.classList.add('dragging');
 });
@@ -900,7 +971,12 @@ vStage.addEventListener('pointermove', (e) => {
   viewerApply();
 });
 const vEndDrag = () => { vDrag = null; vStage.classList.remove('dragging'); };
-vStage.addEventListener('pointerup', vEndDrag);
+vStage.addEventListener('pointerup', (e) => {
+  const d = vDrag;
+  vEndDrag();
+  // a plain click (no drag) outside the page closes the viewer
+  if (d && !d.onPage && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 5) closeViewer();
+});
 vStage.addEventListener('pointercancel', vEndDrag);
 vStage.addEventListener('dblclick', (e) => {
   const r = vStage.getBoundingClientRect();
@@ -934,6 +1010,16 @@ function openPicker(sel, pageNo) {
   const el = document.getElementById('picker');
   el.classList.add('show');
   el.setAttribute('aria-hidden', 'false');
+  // Place the list right next to the page's selector (below it, or above if there's more room there)
+  const box = document.getElementById('picker-box');
+  const r = (sel._btn || sel).getBoundingClientRect();
+  const W = Math.min(980, window.innerWidth - 16);
+  box.style.width = W + 'px';
+  box.style.left = Math.max(8, Math.min(r.left, window.innerWidth - W - 8)) + 'px';
+  const below = window.innerHeight - r.bottom - 10, above = r.top - 10;
+  box.style.top = box.style.bottom = '';
+  if (below >= 300 || below >= above) { box.style.top = (r.bottom + 4) + 'px'; box.style.maxHeight = below + 'px'; }
+  else { box.style.bottom = (window.innerHeight - r.top + 4) + 'px'; box.style.maxHeight = above + 'px'; }
   setTimeout(() => search.focus(), 0);
 }
 function closePicker() {
@@ -1140,7 +1226,7 @@ async function flattenPdfProduct(productId) {
       canvas.width = viewport.width; canvas.height = viewport.height;
       const ctx = canvas.getContext('2d');
       ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-      await page.render({ canvasContext: ctx, viewport }).promise;
+      await page.render({ intent: 'print', canvasContext: ctx, viewport }).promise;
       
       const imgData = canvas.toDataURL('image/jpeg', 0.85);
       const image = await newDoc.embedJpg(imgData);
@@ -1233,7 +1319,7 @@ async function isPageBlank(pdfjsDoc, pageNum) {
   const canvas = document.createElement('canvas');
   canvas.width = viewport.width; canvas.height = viewport.height;
   const ctx = canvas.getContext('2d');
-  await page.render({ canvasContext: ctx, viewport }).promise;
+  await page.render({ intent: 'print', canvasContext: ctx, viewport }).promise;
 
   const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   const data = imgData.data;
@@ -1278,7 +1364,7 @@ function restoreOperateStatus() {
 document.getElementById('operate-status-close').addEventListener('click', hideOperateStatus);
 
 async function runOperate() {
-  if (window._operateStep) return;
+  if (window._operateStep) { toast(`Please wait — ${window._operateStep} is still running`, 'error'); return; }
   const hasScan = !!(state.scan && state.scan.pages.some(p => p.assignedProductId));
   const hasMixing = mixingQueue.some(e => e.pages.length > 0);
   if (!hasScan && !hasMixing) { toast('Nothing to operate on — sort a scan or load Mixing Batch Records', 'error'); return; }
@@ -1287,11 +1373,11 @@ async function runOperate() {
   // Re-grant folder access while we still have the click (browsers need a click for this)
   await ensureFolderAccess();
 
-  // Ask for the Mixing file name up front, so you can walk away once it starts
-  let mixName = null;
+  // Settle Mixing file names (and any "already exists" questions) up front, so you can walk away once it starts
+  let mixPlan = null;
   if (hasMixing) {
-    mixName = getMixingFileName();
-    if (!mixName) { toast('Operate not started — Mixing Batch Records needs a file name', 'error'); return; }
+    mixPlan = await planMixingSaves();
+    if (!mixPlan) { toast('Operate not started — a Mixing file needs a date', 'error'); return; }
   }
 
   const btn = document.getElementById('operate-btn');
@@ -1314,7 +1400,7 @@ async function runOperate() {
       step('OCR (Vision Only)');
       const o = await doBatchOcr({ engine: 'vision_only', scope: 'new' });
       if (o && o.error) throw new Error(o.error);
-      done.push(`${o ? o.done : 0} page${o && o.done === 1 ? '' : 's'} OCR'd`);
+      done.push(o && o.done ? `${o.done} page${o.done === 1 ? '' : 's'} OCR'd` : 'OCR already done at upload');
 
       step('Save');
       const d = await doDownloadReplaceAll();
@@ -1325,8 +1411,17 @@ async function runOperate() {
     if (hasMixing) {
       step('Mixing Batch Records');
       await runMixingOcr({ engine: 'vision_only' });
-      const r = await saveMixingPdf(mixName);
-      done.push(r.where === 'folder' ? `Mixing → ${r.path}` : `Mixing downloaded as ${r.path} (folder not connected)`);
+      const saved = [], kept = [];
+      let where = 'folder';
+      for (const p of mixPlan) {
+        if (p.skip) { kept.push(p.fileName); continue; }
+        const r = await saveMixingEntry(p.entry, p.fileName);
+        if (r.where !== 'folder') where = 'download';
+        saved.push(p.fileName);
+      }
+      if (saved.length) done.push(where === 'folder' ? `Mixing → Mixing Batch Records/${saved.join(', ')}` : `Mixing downloaded: ${saved.join(', ')} (folder not connected)`);
+      if (kept.length) done.push(`kept existing ${kept.join(', ')}`);
+      renderMixingFileList();
     }
     showOperateStatus('ok', 'Operate complete', done);
     toast('⚡ Operate complete ✓', 'success');
@@ -1359,6 +1454,7 @@ async function doMerge() {
 
   let mergedPages = 0;
   let droppedBlankPages = 0;
+  const learnRows = [];
   const productIds = Object.keys(byProduct);
   let mergeCount = 0;
 
@@ -1384,6 +1480,7 @@ async function doMerge() {
       }
     }
 
+    const reuseOcr = {};
     for (const pgObj of byProduct[productId]) {
       const blank = await isPageBlank(state.scan.pdfDoc, pgObj.index + 1);
       if (!blank) {
@@ -1396,6 +1493,10 @@ async function doMerge() {
 
         newProductDoc.addPage(copiedPage);
         mergedPages++;
+        // Page already read at upload → keep that OCR so Operate doesn't read it again
+        const au = state.scan.auto && state.scan.auto[pgObj.index];
+        if (au && au.ocr && !pgObj.rotation) reuseOcr[newProductDoc.getPageCount() - 1] = au.ocr;
+        if (au && au.fields) learnRows.push([product.name, au.fields.customer, au.fields.product, au.fields.line, au.fields.film, au.fields.sleeve, au.fields.tray, au.fields.tare]);
       } else {
         droppedBlankPages++;
       }
@@ -1406,6 +1507,7 @@ async function doMerge() {
     
     // Recalculate OCR status of the newly merged file to guarantee accuracy
     product.ocrByPage = await countExistingOcrLayers(product.pdfBytes); 
+    for (const [k, ocr] of Object.entries(reuseOcr)) product.ocrByPage[k] = ocr;
     
     product.lastUpdated = new Date().toISOString();
     await dbPut('products', product);
@@ -1426,6 +1528,7 @@ async function doMerge() {
   updateMergeButton();
   updateProductsList();
   updateStorageStatus();
+  laRememberExamples(learnRows); // the sorter learns from what you confirmed
   return { pages: mergedPages, products: productIds.length, blanks: droppedBlankPages };
 }
 document.getElementById('merge-btn').addEventListener('click', () => doMerge());
@@ -1680,7 +1783,7 @@ async function renderPageCanvas(pdfDoc, pageNum, dpi) {
   canvas.width = viewport.width; canvas.height = viewport.height;
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-  await page.render({ canvasContext: ctx, viewport }).promise;
+  await page.render({ intent: 'print', canvasContext: ctx, viewport }).promise;
   
   const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
   const base64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : '';
@@ -2306,7 +2409,7 @@ async function runMixingOcr({ engine, force = false } = {}) {
     cvs.width = vp.width; cvs.height = vp.height;
     const ctx = cvs.getContext('2d');
     ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cvs.width, cvs.height);
-    await page.render({ canvasContext: ctx, viewport: vp }).promise;
+    await page.render({ intent: 'print', canvasContext: ctx, viewport: vp }).promise;
     const base64 = cvs.toDataURL('image/jpeg', 0.85).split(',')[1];
 
     let res;
@@ -2336,60 +2439,69 @@ async function runMixingOcr({ engine, force = false } = {}) {
     if (pg._statusEl) pg._statusEl.textContent = '✓';
     mixingSetProgress(`OCR ${done}/${todo.length}: ${label} ✓`, (done / todo.length) * 100);
   }
-  mixingQueue.forEach(e => { e.ocrDone = e.pages.every(p => p.ocrResult); });
+  mixingQueue.forEach(e => { e.ocrDone = e.pages.every(p => p.ocrResult); if (e.ocrDone && !e.saveNameEdited) detectMixingDate(e); });
   renderMixingFileList();
   mixingRefreshButtons();
   return done;
 }
 
-// Build ONE searchable PDF from every page in the queue (in file order)
-async function buildMixingPdf() {
+// Build one searchable PDF from one Mixing file's pages
+async function buildMixingPdf(entry) {
   const doc = await PDFLib.PDFDocument.create();
   const font = await doc.embedFont(PDFLib.StandardFonts.Helvetica);
-  for (const entry of mixingQueue) {
-    for (const pg of entry.pages) {
-      if (!pg.ocrResult || !pg.ocrBase64) throw new Error(`${entry.filename}: a page has not been OCR'd yet`);
-      const jpg = await doc.embedJpg(Uint8Array.from(atob(pg.ocrBase64), ch => ch.charCodeAt(0)));
-      const page = doc.addPage([pg.ptW, pg.ptH]);
-      page.drawImage(jpg, { x: 0, y: 0, width: pg.ptW, height: pg.ptH });
-      const ocr = pg.ocrResult;
-      const sx = pg.ptW / ocr.canvasWidth, sy = pg.ptH / ocr.canvasHeight;
-      for (const w of (ocr.words || [])) {
-        if (!w.text?.trim() || !w.bbox) continue;
-        const { x0, y0, x1, y1 } = w.bbox;
-        try {
-          page.drawText(w.text, { x: x0 * sx, y: pg.ptH - y1 * sy, size: Math.max(4, (y1 - y0) * sy * 0.9),
-            font, color: PDFLib.rgb(0, 0, 0), opacity: 0 });
-        } catch (_) {}
-      }
+  for (const pg of entry.pages) {
+    if (!pg.ocrResult || !pg.ocrBase64) throw new Error(`${entry.filename}: a page has not been OCR'd yet`);
+    const jpg = await doc.embedJpg(Uint8Array.from(atob(pg.ocrBase64), ch => ch.charCodeAt(0)));
+    const page = doc.addPage([pg.ptW, pg.ptH]);
+    page.drawImage(jpg, { x: 0, y: 0, width: pg.ptW, height: pg.ptH });
+    const ocr = pg.ocrResult;
+    const sx = pg.ptW / ocr.canvasWidth, sy = pg.ptH / ocr.canvasHeight;
+    for (const w of (ocr.words || [])) {
+      if (!w.text?.trim() || !w.bbox) continue;
+      const { x0, y0, x1, y1 } = w.bbox;
+      try {
+        page.drawText(w.text, { x: x0 * sx, y: pg.ptH - y1 * sy, size: Math.max(4, (y1 - y0) * sy * 0.9),
+          font, color: PDFLib.rgb(0, 0, 0), opacity: 0 });
+      } catch (_) {}
     }
   }
   return await doc.save();
 }
 
-// Ask for / clean the file name. Returns e.g. "03.11.pdf", or null if cancelled.
-function getMixingFileName({ ask = true } = {}) {
-  const input = document.getElementById('mixing-name-input');
-  let name = (input.value || '').trim();
+// "13.11" → "13.11.pdf". Asks for it if no date was read (returns null if you cancel).
+function mixingFileNameFor(entry, { ask = true } = {}) {
+  let name = (entry.saveName || '').trim();
   if (!name && ask) {
-    name = (prompt('File name for today\'s Mixing Batch Records (e.g. 03.11):') || '').trim();
-    if (name) input.value = name;
+    name = (prompt(`No date was read for ${entry.filename}.\nType the date for this file (e.g. 13.11):`) || '').trim();
+    if (name) { entry.saveName = name; entry.saveNameEdited = true; renderMixingFileList(); }
   }
   if (!name) return null;
-  name = name.replace(/\.pdf$/i, '').replace(/[\\/:*?"<>|]/g, '-');
-  return name + '.pdf';
+  return name.replace(/\.pdf$/i, '').replace(/[\\/:*?"<>|]/g, '-') + '.pdf';
+}
+
+async function mixingFolder() {
+  if (folderHandle && await checkFolderConnection()) {
+    try { return await folderHandle.getDirectoryHandle('Mixing Batch Records', { create: true }); } catch (_) {}
+  }
+  return null;
+}
+async function mixingFileExists(fileName) {
+  const sub = await mixingFolder();
+  if (!sub) return false;
+  try { await sub.getFileHandle(fileName); return true; } catch (_) { return false; }
 }
 
 // Save into <month folder>/Mixing Batch Records/<name>.pdf — falls back to a normal download
-async function saveMixingPdf(fileName) {
-  const bytes = await buildMixingPdf();
-  if (folderHandle && await checkFolderConnection()) {
+async function saveMixingEntry(entry, fileName) {
+  const bytes = await buildMixingPdf(entry);
+  const sub = await mixingFolder();
+  if (sub) {
     try {
-      const sub = await folderHandle.getDirectoryHandle('Mixing Batch Records', { create: true });
       const fh = await sub.getFileHandle(fileName, { create: true });
       const w = await fh.createWritable();
       await w.write(bytes);
       await w.close();
+      entry.savedAs = fileName;
       return { where: 'folder', path: `${folderHandle.name}/Mixing Batch Records/${fileName}` };
     } catch (e) {
       console.error('[Mixing save]', e);
@@ -2397,7 +2509,27 @@ async function saveMixingPdf(fileName) {
     }
   }
   downloadPdf(bytes, fileName);
+  entry.savedAs = fileName;
   return { where: 'download', path: fileName };
+}
+
+// Work out names for every file and ask about any that already exist. Returns the plan, or null if cancelled.
+async function planMixingSaves() {
+  const plan = [];
+  const used = {};
+  for (const entry of mixingQueue) {
+    if (!entry.pages.length) continue;
+    const fileName = mixingFileNameFor(entry);
+    if (!fileName) return null;
+    if (used[fileName]) { alert(`Two Mixing files would both be saved as ${fileName}.\nFix the date on one of them in the Mixing tab first.`); return null; }
+    used[fileName] = true;
+    let skip = false;
+    if (await mixingFileExists(fileName)) {
+      skip = !confirm(`${fileName} already exists in Mixing Batch Records.\n\nOK = replace it\nCancel = keep the existing file and don't save this one`);
+    }
+    plan.push({ entry, fileName, skip });
+  }
+  return plan;
 }
 
 document.getElementById('mixing-ocr-btn').addEventListener('click', async () => {
@@ -2415,11 +2547,17 @@ document.getElementById('mixing-ocr-btn').addEventListener('click', async () => 
 });
 
 document.getElementById('mixing-download-btn').addEventListener('click', async () => {
-  const fileName = getMixingFileName();
-  if (!fileName) { toast('Enter a file name first', 'error'); return; }
   try {
-    const r = await saveMixingPdf(fileName);
-    toast(r.where === 'folder' ? `Saved to ${r.path}` : `Downloaded ${r.path}`, 'success');
+    const plan = await planMixingSaves();
+    if (!plan) { toast('Not saved — a file name is missing', 'error'); return; }
+    const saved = [];
+    for (const p of plan) {
+      if (p.skip) continue;
+      const r = await saveMixingEntry(p.entry, p.fileName);
+      saved.push(r.where === 'folder' ? p.fileName : p.fileName + ' (downloaded)');
+    }
+    renderMixingFileList();
+    toast(saved.length ? `Saved: ${saved.join(', ')}` : 'Nothing saved', saved.length ? 'success' : 'error');
   } catch (e) {
     console.error('[Mixing save]', e);
     toast('Save failed: ' + e.message, 'error');
@@ -2500,8 +2638,13 @@ function renderMixingFileList() {
     item.innerHTML = `
       <div class="mix-fname">${escapeHtml(entry.filename)}</div>
       <div class="mix-fmeta">${entry.pages.length} page${entry.pages.length !== 1 ? 's' : ''}</div>
-      <div class="mix-fstatus ${entry.ocrDone ? 'done' : 'pending'}">${entry.ocrDone ? '✓ OCR done' : (entry.pages.some(p => p.ocrResult) ? '◐ Partly done' : '○ Pending')}</div>
+      <div class="mix-fstatus ${entry.ocrDone ? 'done' : 'pending'}">${entry.ocrDone ? '✓ OCR done' : (entry.pages.some(p => p.ocrResult) ? '◐ Partly done' : '○ Pending')}${entry.savedAs ? ' · saved' : ''}</div>
+      <label class="mix-save">Save as <input type="text" value="${escapeHtml(entry.saveName || '')}" placeholder="13.11" class="${entry.ocrDone && !entry.saveName ? 'missing' : ''}">.pdf</label>
+      ${entry.dateVotes ? `<div class="mix-fdate ${entry.dateOdd || !entry.dateVotes.length ? 'warn' : ''}">${entry.dateVotes.length ? `Date read on ${entry.dateVotes[0][1]} of ${entry.pages.length} pages${entry.dateOdd ? ` · ${entry.dateOdd} ${entry.dateOdd !== 1 ? 'show' : 'shows'} another date` : ''}` : 'No date could be read — type it'}</div>` : ''}
       <div class="mix-fremove" data-idx="${idx}">✕ Remove</div>`;
+    const nameInput = item.querySelector('.mix-save input');
+    nameInput.addEventListener('click', (e) => e.stopPropagation());
+    nameInput.addEventListener('input', (e) => { entry.saveName = e.target.value.trim(); entry.saveNameEdited = true; e.target.classList.toggle('missing', !entry.saveName); });
     item.querySelector('.mix-fremove').addEventListener('click', (e) => {
       e.stopPropagation();
       mixingQueue.splice(idx, 1);
@@ -2540,7 +2683,7 @@ async function buildMixingThumb(entry, pg) {
   async function draw() {
     const vp = page.getViewport({ scale: MIX_THUMB_DPI / 72, rotation: pg.rotation });
     canvas.width = vp.width; canvas.height = vp.height;
-    await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+    await page.render({ intent: 'print', canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
   }
   await draw();
 
@@ -2631,6 +2774,671 @@ async function renderMixingThumbs(fileIdx) {
   relabelMixingThumbs(entry);
 }
 
+// ---- AUTO-SORT MATCHER ----
+// Reads what was written on a Line Assembly sheet (Customer, Product, Line, Film, Label/Sleeve,
+// Liner/Tray, Spec tare) and scores every product. Customer decides the group, Product words
+// decide within it, and the code/line/tare rules settle the known look-alike pairs.
+
+const LA_CUSTOMERS = ['ALDI', 'ASDA', 'MS', 'OCADO', 'COOP', 'ICELAND', 'BOOTHS', 'COSTCO'];
+const LA_CUSTOMER_LABEL = { ALDI: 'Aldi', ASDA: 'Asda', MS: 'M&S', OCADO: 'Ocado', COOP: 'Co-op', ICELAND: 'Iceland', BOOTHS: 'Booths', COSTCO: 'Costco' };
+
+// Known products and Birat's rules. Names are the exact file names in the month folder.
+const LA_CATALOGUE = [
+  { n: 'Aldi Extra Tasty', c: 'ALDI', k: { EXTRA: 2, TASTY: 2 } },
+  { n: 'Aldi Garlic and Herb Spatchcock', c: 'ALDI', k: { GARLIC: 3, HERB: 2, SPATCHCOCK: 1 } },
+  { n: 'Aldi PSO', c: 'ALDI', k: { PSO: 4, PORK: 2, SAGE: 2, ONION: 2 } },
+  { n: 'Aldi Rotisserie Spatchcock', c: 'ALDI', k: { ROTISSERIE: 3, SPATCHCOCK: 1 } },
+  { n: 'Asda Extra Tasty Large', c: 'ASDA', k: { EXTRA: 2, TASTY: 2, LARGE: 3 }, film: '21' },
+  { n: 'Asda Extra Tasty Small', c: 'ASDA', k: { EXTRA: 2, TASTY: 2, SMALL: 3 }, film: '31' },
+  { n: 'Asda Piri Piri Spatchcock', c: 'ASDA', k: { PIRI: 4, PERI: 4 } },
+  { n: 'ASDA PSO', c: 'ASDA', k: { PSO: 4, PORK: 2, SAGE: 2, ONION: 2 } },
+  { n: 'Asda Lemon and Herb Spatchcock', c: 'ASDA', k: { LEMON: 5, HERB: 1 } },
+  { n: 'Booths Rotisserie', c: 'BOOTHS', k: { ROTISSERIE: 2 } },
+  { n: 'Co-op Garlic and Herb', c: 'COOP', k: { GARLIC: 3, HERB: 2 } },
+  { n: 'Costco Rotisserie', c: 'COSTCO', k: { ROTISSERIE: 2 } },
+  { n: 'Iceland Extra Tasty', c: 'ICELAND', k: { EXTRA: 2, TASTY: 2 } },
+  { n: 'M&S AYR Rotisserie', c: 'MS', k: { AYR: 5, ROTISSERIE: 2 }, tray: '221165', tare: '44' },
+  { n: 'M&S Aromatic Butter BDF', c: 'MS', k: { AROMATIC: 5, INDIAN: 5, BUTTER: 1 }, tare: '60' },
+  { n: 'M&S BBQ Marinated BDF', c: 'MS', k: { BBQ: 4, MARINATED: 2 }, tare: '60' },
+  { n: 'M&S Butter Basted Joints', c: 'MS', k: { BUTTER: 2, BASTED: 2, JOINTS: 3 }, line: '5', tray: '320997', tare: '18' },
+  { n: 'M&S Garlic and Herb', c: 'MS', k: { GARLIC: 3, HERB: 2 } },
+  { n: 'M&S Hot Deli BBQ', c: 'MS', k: { BBQ: 2, HOT: 1, DELI: 1 }, discontinued: true },
+  { n: 'M&S Hot Deli Butter Basted', c: 'MS', k: { BUTTER: 2, BASTED: 2, HOT: 2, DELI: 2 }, line: '1' },
+  { n: 'M&S Hot Deli Piri Piri', c: 'MS', k: { PIRI: 4, PERI: 4, HOT: 1, DELI: 1 }, line: '1' },
+  { n: 'M&S Jalapeno and Herb Spatchcock', c: 'MS', k: { JALAPENO: 5, GREEN: 3, HERB: 1 } },
+  { n: 'M&S PSO', c: 'MS', k: { PSO: 4, PORK: 2, SAGE: 2, ONION: 2 } },
+  { n: 'M&S Rotisserie Joints', c: 'MS', k: { ROTISSERIE: 3, JOINTS: 3 }, line: '5', tray: '320997', tare: '18' },
+  { n: 'M&S Salt and Pepper BDF', c: 'MS', k: { SALT: 2, PEPPER: 2 }, sleeve: '9', tare: '60' },
+  { n: 'M&S Dine In', c: 'MS', k: { DINE: 5, PROMO: 5, SALT: 2, PEPPER: 2 }, sleeve: '7' },
+  { n: 'Ocado CROWN', c: 'OCADO', k: { CROWN: 5, SALT: 2, PEPPER: 2 } },
+  { n: 'Ocado Extra Tasty', c: 'OCADO', k: { EXTRA: 2, TASTY: 2 } },
+  { n: 'Ocado Garlic and Herb', c: 'OCADO', k: { GARLIC: 3, HERB: 2 } },
+  { n: 'Ocado PSO', c: 'OCADO', k: { PSO: 4, PORK: 2, SAGE: 2, ONION: 2 } },
+];
+
+const LA_STOP = new Set(['AND', 'THE', 'OF', 'MS', 'BDF', 'OCT', 'NOV', 'DEC', 'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'SEPT']);
+
+function laNormName(s) { return String(s || '').toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]/g, ''); }
+
+function laLev(a, b) {
+  if (a === b) return 0;
+  const m = a.length, n = b.length;
+  if (!m) return n; if (!n) return m;
+  let prev = Array.from({ length: n + 1 }, (_, j) => j);
+  for (let i = 1; i <= m; i++) {
+    const cur = [i];
+    for (let j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    prev = cur;
+  }
+  return prev[n];
+}
+function laSim(a, b) { const L = Math.max(a.length, b.length); return L ? 1 - laLev(a, b) / L : 0; }
+
+// Which customer was written in the Customer box
+function laDetectCustomer(raw, learnedCust) {
+  const s = String(raw || '').toUpperCase();
+  const compact = s.replace(/[^A-Z0-9&+]/g, '');
+  if (!compact) return null;
+  if (/M\s*[&+]\s*S/.test(s) || /\bM\s+S\b/.test(s) || /^(MS|MAS|MIS|M5|MNS|M\+S|M&S|MES|MAND|MANDS)/.test(compact) || /MARKS/.test(compact)) return 'MS';
+  const letters = compact.replace(/[^A-Z]/g, '');
+  if (learnedCust && learnedCust[compact]) return learnedCust[compact];
+  let best = null, bs = 0;
+  const keys = { ALDI: 'ALDI', ASDA: 'ASDA', OCADO: 'OCADO', COOP: 'COOP', ICELAND: 'ICELAND', BOOTHS: 'BOOTHS', COSTCO: 'COSTCO' };
+  for (const [k, v] of Object.entries(keys)) {
+    const sim = Math.max(laSim(letters, k), letters.includes(k) ? 1 : 0, laSim(letters.slice(0, k.length), k) * 0.95);
+    if (sim > bs) { bs = sim; best = v; }
+  }
+  return bs >= 0.6 ? best : null;
+}
+
+// Clean the Product box into comparable words
+function laProductTokens(raw) {
+  let s = ' ' + String(raw || '').toUpperCase() + ' ';
+  s = s.replace(/\bG\s*[\/+&]\s*H\b/g, ' GARLIC HERB ')
+       .replace(/\bL\s*[\/+&]\s*H\b/g, ' LEMON HERB ')
+       .replace(/\bS\s*[\/+&]\s*P\b/g, ' SALT PEPPER ')
+       .replace(/\bB\s*\.?\s*B\s*\.?\s*[Q8]\b\.?/g, ' BBQ ')
+       .replace(/(?:^|\s)(?:13|B)\s*\.\s*(?:13|B)\s*\.?\s*[Q8]?(?=[\s.]|$)/g, ' BBQ ')
+       .replace(/\bP\s*\.?\s*[S5]\s*\.?\s*[O0]\b\.?/g, ' PSO ')
+       .replace(/\bP\s*&\s*O\b/g, ' PSO ')
+       .replace(/^\s*[P9375]\s*[S5]\s*[O0]\b/, ' PSO ');
+  const out = [];
+  for (let t of s.split(/[^A-Z0-9]+/)) {
+    if (!t) continue;
+    const digits = (t.match(/\d/g) || []).length;
+    if (t.length >= 3 && digits === t.length) continue;           // dates / numbers
+    if (digits > 0 && digits >= t.length / 2 && t.length > 3) continue;
+    if (t.length <= 3) t = t.replace(/0/g, 'O').replace(/5/g, 'S').replace(/8/g, 'B');
+    if (t === 'P3O' || t === 'PSD' || t === 'PS') t = 'PSO';
+    if (t.length < 2 || LA_STOP.has(t)) continue;
+    out.push(t);
+  }
+  return out;
+}
+
+function laKeywordHit(tokens, compact, K) {
+  for (const t of tokens) {
+    if (t === K) return 1;
+    if (K.length <= 3) { if (t.length === 3 && laLev(t, K) <= 1 && t[0] === K[0]) return 0.7; continue; }
+    if (t.length >= 4) {
+      const sim = laSim(t, K);
+      if (sim >= 0.72) return sim;
+      if (t.length > K.length && t.includes(K)) return 0.9;
+      if (K.length >= 6 && t.length >= 5 && t.length < K.length && laSim(t, K.slice(0, t.length)) >= 0.8) return 0.75; // "ROTIS" for ROTISSERIE
+    }
+  }
+  if (K.length >= 5 && compact.includes(K)) return 0.85;
+  if (K.length >= 4 && compact.length >= K.length) {
+    let bestW = 0;
+    for (let i = 0; i + K.length <= compact.length; i++) bestW = Math.max(bestW, laSim(compact.substr(i, K.length), K));
+    if (bestW >= 0.75) return 0.6 * bestW;
+  }
+  for (const t of tokens) if (t.length === 4 && K.length >= 6 && laSim(t, K.slice(0, 4)) >= 0.75) return 0.5;
+  return 0;
+}
+
+function laDigits(s) { return String(s || '').replace(/[OoQD]/g, '0').replace(/[Il|]/g, '1').replace(/[^0-9]/g, ''); }
+function laFilmCode(s) { const d = laDigits(s); const m = d.match(/65([23])1/); if (m) return m[1] === '2' ? '21' : '31'; const r = d.match(/\d{4,}/); return r ? r[0].slice(-2) : ''; }
+function laSleeveDigit(s) { const d = laDigits(s); const r = String(s || '').match(/(\d)\s*(\d)\s*(\d)\s*(\d)/); const run = r ? r.slice(1).join('') : (d.match(/\d{3,}/) || [''])[0]; return run ? run.slice(-1) : ''; }
+function laTray(s) { const d = laDigits(s); if (/22116|21165/.test(d)) return '221165'; if (/32099|20997|32097/.test(d)) return '320997'; return ''; }
+function laTare(s) { const m = String(s || '').match(/\d+/); return m ? m[0].slice(0, 2) : ''; }
+
+// Build what the matcher learns from examples: [product, customer_raw, product_raw, ...]
+function laBuildLearned(examples, products) {
+  const tok = {}, cust = {}, custVotes = {}, pre = {}, preVotes = {};
+  for (const ex of examples) {
+    const name = ex[0];
+    for (const t of new Set(laProductTokens(ex[2]))) {
+      tok[t] = tok[t] || {}; tok[t][name] = (tok[t][name] || 0) + 1;
+    }
+    const c = laProductCustomer(name, products);
+    const compact = String(ex[1] || '').toUpperCase().replace(/[^A-Z0-9&+]/g, '');
+    if (c && compact) { custVotes[compact] = custVotes[compact] || {}; custVotes[compact][c] = (custVotes[compact][c] || 0) + 1; }
+    if (c) for (const code of [ex[4], ex[5], ex[6]]) {
+      const p = laCodePrefix(code); if (!p) continue;
+      preVotes[p] = preVotes[p] || {}; preVotes[p][c] = (preVotes[p][c] || 0) + 1;
+    }
+  }
+  for (const [k, v] of Object.entries(preVotes)) {
+    const tot = Object.values(v).reduce((a, b) => a + b, 0);
+    const best = Object.entries(v).sort((a, b) => b[1] - a[1])[0];
+    if (tot >= 3 && best[1] / tot >= 0.85) pre[k] = best[0];
+  }
+  for (const [k, v] of Object.entries(custVotes)) {
+    const best = Object.entries(v).sort((a, b) => b[1] - a[1])[0];
+    if (best[1] >= 2 && best[1] / Object.values(v).reduce((a, b) => a + b, 0) >= 0.8) cust[k] = best[0];
+  }
+  return { tok, cust, pre };
+}
+function laCodePrefix(s) { const m = String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '').match(/^[A-Z]{4,5}/); return m ? m[0].slice(0, 5) : ''; }
+// Customer hinted by packaging codes (used when the Customer box is unreadable)
+function laCustomerFromCodes(fields, learned) {
+  if (!learned || !learned.pre) return null;
+  const votes = {};
+  for (const code of [fields.film, fields.sleeve, fields.tray]) { const p = laCodePrefix(code); const c = p && learned.pre[p]; if (c) votes[c] = (votes[c] || 0) + 1; }
+  const best = Object.entries(votes).sort((a, b) => b[1] - a[1])[0];
+  return best ? best[0] : null;
+}
+
+function laCatalogueEntry(name) {
+  const k = laNormName(name);
+  return LA_CATALOGUE.find(e => laNormName(e.n) === k) || null;
+}
+function laProductCustomer(name, products) {
+  const e = laCatalogueEntry(name); if (e) return e.c;
+  const first = String(name || '').trim().split(/\s+/)[0] || '';
+  return laDetectCustomer(first, null);
+}
+function laProductKeywords(name) {
+  const e = laCatalogueEntry(name); if (e) return e.k;
+  const k = {};
+  const words = laProductTokens(String(name).replace(/^\S+\s*/, ''));
+  for (const w of words) if (w.length >= 3) k[w] = 2;
+  return k;
+}
+
+// Main entry: fields read from the page → ranked suggestions
+// fields: { customer, product, line, film, sleeve, tray, tare }
+// productNames: names of products in the user's list. learned: from laBuildLearned.
+function laMatch(fields, productNames, learned, exclude) {
+  const names = new Set(productNames);
+  for (const e of LA_CATALOGUE) names.add(e.n);          // also score known products not yet in the list
+  let custRead = laDetectCustomer(fields.customer, learned && learned.cust);
+  let custFromCodes = false;
+  if (!custRead) { custRead = laCustomerFromCodes(fields, learned); custFromCodes = !!custRead; }
+  const tokens = laProductTokens(fields.product);
+  const compact = tokens.join('');
+  const film = laFilmCode(fields.film), sleeve = laSleeveDigit(fields.sleeve), tray = laTray(fields.tray), tare = laTare(fields.tare);
+  const line = String(fields.line || '').trim();
+
+  const scored = [];
+  for (const name of names) {
+    const e = laCatalogueEntry(name) || {};
+    const pc = laProductCustomer(name);
+    let s = 0; const why = [];
+    if (custRead && pc) {
+      if (custRead === pc) { s += custFromCodes ? 3 : 5; } else { s -= custFromCodes ? 4 : 8; }
+    }
+    // product words
+    const kw = laProductKeywords(name);
+    let kwScore = 0;
+    for (const [K, w] of Object.entries(kw)) { const h = laKeywordHit(tokens, compact, K); if (h) { kwScore += w * h; } }
+    s += Math.min(kwScore, 8);
+    // learned spellings (misreads seen in earlier sheets)
+    if (learned) {
+      let ls = 0;
+      for (const t of new Set(tokens)) {
+        const row = learned.tok[t]; if (!row) continue;
+        let own = row[name] || 0, tot = 0;
+        for (const v of Object.values(row)) tot += v;
+        if (exclude && exclude.name === name && exclude.tokens.has(t)) { own -= 1; tot -= 1; }
+        if (tot >= 2 && own > 0) ls += 1.5 * own / tot;
+      }
+      s += Math.min(ls, 4);
+    }
+    // rules
+    if (e.film && film) { if (film === e.film) { s += 4; why.push('film'); } else s -= 4; }
+    if (e.sleeve && sleeve) { if (sleeve === e.sleeve) { s += 4; why.push('sleeve'); } else s -= 4; }
+    if (e.line && line) { if (line === e.line) { s += 3; why.push('line'); } else s -= 4; }
+    if (e.tray && tray) { if (tray === e.tray) { s += 1.5; why.push('tray'); } else s -= 3; }
+    if (e.tare && tare) { if (tare === e.tare) { s += 1; why.push('tare'); } else s -= 1.5; }
+    if (e.discontinued) s -= 6;
+    scored.push({ name, score: s, inList: productNames.includes(name), rules: why });
+  }
+  scored.sort((a, b) => b.score - a.score);
+  const best = scored[0], second = scored[1] || { score: -99 };
+  const pickable = scored.filter(x => x.inList);
+  const pick = pickable[0] || null;
+  let level = 'red';
+  if (pick && pick === best && custRead && !custFromCodes && best.score >= 7 && best.score - second.score >= 3) level = 'green';
+  else if (pick && pick.score >= 3) level = 'amber';
+  const reasons = [];
+  reasons.push(`Customer “${(fields.customer || '').trim() || '—'}” → ${custRead ? LA_CUSTOMER_LABEL[custRead] + (custFromCodes ? ' (from packaging codes)' : '') : 'not recognised'}`);
+  reasons.push(`Product “${(fields.product || '').trim() || '—'}”`);
+  if (line) reasons.push(`Line ${line}`);
+  if (film) reasons.push(`Film …${film}`);
+  if (sleeve) reasons.push(`Sleeve …${sleeve}`);
+  if (tray) reasons.push(`Tray ${tray}`);
+  if (tare) reasons.push(`Tare ${String(fields.tare).trim()}`);
+  let note = '';
+  if (best && !best.inList) { note = `Looks like “${best.name}”, which isn't in your product list`; if (level === 'green') level = 'amber'; }
+  else if (pick && second && pick.score - second.score < 3) note = `Close call with “${second.name}”`;
+  return { pick: pick ? pick.name : null, level, score: pick ? pick.score : 0, best: best.name, runnerUp: second.name, note, reasons, customer: custRead };
+}
+
+
+// ---- READING FIELDS FROM A VISION RESULT ----
+// Finds the printed labels on the sheet (Customer:, Product:, Line … Shift, Liner / Tray:,
+// Film/ Outer Liner, Label / sleeve:, Specification Tare Weight, Mixed by … Date:) and reads the
+// handwriting to the right of each one, on the same row.
+
+function laWN(t) { return String(t || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
+function laCY(w) { return (w.bbox.y0 + w.bbox.y1) / 2; }
+function laRow(words, a, tol = 0.9) {
+  const cy = laCY(a), h = Math.max(4, a.bbox.y1 - a.bbox.y0);
+  return words.filter(w => Math.abs(laCY(w) - cy) <= h * tol);
+}
+function laRightOf(words, a, { stop, maxX, maxWords = 12 } = {}) {
+  const row = laRow(words, a).filter(w => w !== a && w.bbox.x0 >= a.bbox.x1 - 2 && (maxX == null || w.bbox.x0 < maxX))
+    .sort((p, q) => p.bbox.x0 - q.bbox.x0);
+  const out = [];
+  for (const w of row) {
+    if (stop && stop(w)) break;
+    out.push(w.text);
+    if (out.length >= maxWords) break;
+  }
+  return out.join(' ').replace(/^[:\s]+/, '').trim();
+}
+function laFind(words, norm, pred) { return words.find(w => laWN(w.text) === norm && (!pred || pred(w))) || null; }
+function laInRowRight(words, a, norm) { return laRow(words, a).find(w => w !== a && laWN(w.text) === norm && w.bbox.x0 > a.bbox.x0) || null; }
+function laAfterText(text, re, n) { const m = String(text || '').match(re); return m ? String(text).slice(m.index + m[0].length).trim().split(/\s+/).slice(0, n).join(' ') : ''; }
+
+function laExtractFields(res) {
+  const words = (res && res.words) || [];
+  const text = (res && res.text) || '';
+  const f = { customer: '', product: '', line: '', film: '', sleeve: '', tray: '', tare: '' };
+
+  const cust = laFind(words, 'customer');
+  if (cust) {
+    const prodA = laInRowRight(words, cust, 'product');
+    f.customer = laRightOf(words, cust, { stop: w => laWN(w.text) === 'product' });
+    if (prodA) f.product = laRightOf(words, prodA, { stop: w => ['use', 'usebydate', 'useby'].includes(laWN(w.text)) });
+  }
+  // Line number: the "Line" on the header row that also has "Shift"
+  const lineA = words.find(w => laWN(w.text) === 'line' && laInRowRight(words, w, 'shift'));
+  if (lineA) {
+    const v = laRightOf(words, lineA, { stop: w => laWN(w.text) === 'shift' });
+    const d = v.replace(/[Il|]/g, '1').match(/[1-9]/); f.line = d ? d[0] : '';
+  }
+  // Packaging table: supplier-code column ends where the "Batch" heading starts
+  const trayA = laFind(words, 'tray');
+  let maxX = null;
+  if (trayA) {
+    const head = words.filter(w => laWN(w.text) === 'batch' && w.bbox.y1 < trayA.bbox.y0 && w.bbox.x0 > trayA.bbox.x1)
+      .sort((p, q) => q.bbox.y1 - p.bbox.y1)[0];
+    if (head) maxX = head.bbox.x0 - 2;
+  }
+  const codeStop = w => /^\d{7,}$/.test(laWN(w.text));
+  if (trayA) f.tray = laRightOf(words, trayA, { stop: codeStop, maxX, maxWords: 4 });
+  const outer = laFind(words, 'outer');
+  const filmA = outer ? (laInRowRight(words, outer, 'liner') || outer) : null;
+  if (filmA) f.film = laRightOf(words, filmA, { stop: codeStop, maxX, maxWords: 4 });
+  const sleeveA = laFind(words, 'sleeve');
+  if (sleeveA) f.sleeve = laRightOf(words, sleeveA, { stop: codeStop, maxX, maxWords: 4 });
+  const spec = words.find(w => laWN(w.text) === 'specification' && laInRowRight(words, w, 'tare'));
+  if (spec) {
+    const wt = laInRowRight(words, spec, 'weight');
+    if (wt) f.tare = laRightOf(words, wt, { stop: w => laWN(w.text) === 'actual', maxWords: 3 });
+  }
+  // Fallback: read from the plain text when a label wasn't found in the word boxes
+  if (!f.customer) f.customer = laAfterText(text, /Customer\s*:?/i, 2);
+  if (!f.product) f.product = laAfterText(text, /\bProduct\s*:/i, 3);
+  if (!f.line) { const m = text.match(/\bLine\s*:?\s*([1-9])\s*Shift/i); if (m) f.line = m[1]; }
+  if (!f.film) f.film = laAfterText(text, /Outer\s*Liner/i, 2);
+  if (!f.sleeve) f.sleeve = laAfterText(text, /Label\s*\/\s*sleeve\s*:?/i, 2);
+  if (!f.tray) f.tray = laAfterText(text, /Liner\s*\/\s*Tray\s*:?/i, 2);
+  if (!f.tare) f.tare = laAfterText(text, /Specification\s*Tare\s*Weight/i, 1);
+  return f;
+}
+
+// Mixing Batch Records: the date written next to "Date:" on the "Mixed by" row → "13.11"
+function mixParseDate(s) {
+  const t = String(s || '').replace(/[OoQD]/g, '0').replace(/[Il|]/g, '1');
+  const m = t.match(/(\d{1,2})\D{0,3}(\d{1,2})\D{0,3}(\d{2,4})/);
+  if (!m) return '';
+  const d = +m[1], mo = +m[2];
+  if (d < 1 || d > 31 || mo < 1 || mo > 12) return '';
+  return String(d).padStart(2, '0') + '.' + String(mo).padStart(2, '0');
+}
+function mixDateFromOcr(res) {
+  const words = (res && res.words) || [];
+  const dateA = words.find(w => laWN(w.text) === 'date' && laRow(words, w).some(x => x.bbox.x1 < w.bbox.x0 && ['mixed', 'mixedby'].includes(laWN(x.text))));
+  if (dateA) {
+    const v = laRightOf(words, dateA, { stop: w => laWN(w.text).startsWith('mix'), maxWords: 6 });
+    const d = mixParseDate(v);
+    if (d) return d;
+  }
+  const m = String((res && res.text) || '').match(/Mixed\s*by[\s\S]{0,80}?Date\s*:?\s*([0-9OoIl|]{1,2}\s*[-.\/·,\s]\s*[0-9OoIl|]{1,2}\s*[-.\/·,\s]\s*[0-9]{2,4})/i);
+  return m ? mixParseDate(m[1]) : '';
+}
+
+
+// Training examples from the month folder (customer, product, line, film, sleeve, tray, tare). Operator names are not included.
+const LA_EXAMPLES = [["ASDA PSO","ASAA","PSO 11/ OCT/ 26","6","PLCASEST 1410153622","PLCCP057 718041","","Actualpackagingtare"],["ASDA PSO","ASAA","PS0 12 OCT 26","","PLCAS 651","PiceP 057","415221315-801 WN","32€"],["ASDA PSO","ASDA","PSO 15007","5","PLEAS 651",": Piccf057","45221315.801 101304998","328"],["ASDA PSO","ASDA","P.S.O 16.10.26","","PICAS651 4101520",": NA","US -221315-801","weight"],["ASDA PSO","ASCA","P50 16 OCT","6","RCAS 651",": PLCC","0912131580 14/4674","."],["ASDA PSO","ASDA","P50","6","",": PLCCPOS",": 082/315801","3ty"],["ASDA PSO","ASDA","950 19 OCT","","PLCAS 651",": PLCCP057",": 45221315801","329"],["ASDA PSO","ASDA","P.S.O : 22 26","6","NA NH","","","weight"],["ASDA PSO","ASDA .","PSO 23007 of","5","PLCAS651 4101536224",": Peach","45221315.801 1304997","3295"],["ASDA PSO","ASDA","P.S.O","4","PLCAS 651","","45-221815-801 W","Actual"],["Aldi Extra Tasty","ALDi","EXTRATASTY 150CT","4","77LTE 188-","MA M","US221315801- 1303112","328"],["Aldi Extra Tasty","ALDI","EXTRA TASTY 15005","","PIFUTE 188",": MA","1303112 SILVER","321-"],["Aldi Extra Tasty","ALDi","Useby Date: : 15.10.26","4","PFCTE 188",": NA","US-221315-801 W304793","329"],["Aldi Extra Tasty","ALDI","16.10.26","","PFITE188 410156085",": NANA","US -221315-801","A"],["Aldi Extra Tasty","ALDI","15.10.26","4","PFLTE 188",": NA",": FilmyOuter","32g"],["Aldi Extra Tasty","AlDi","EXTRA TASTY 16 OCT","","7 FUTE188",": MA","US221315801 W303112","weight"],["Aldi Extra Tasty","AUDI","EXTRA TASTY 17 OCT 26","6","PICTE 188",": OLIA","45221315-801 44304396","328"],["Aldi Extra Tasty","ALBT","EXTRA TASTY 17","6","PILTE 188",": Min",": 15221315-201","weight"],["Aldi Extra Tasty","ACAT","EXTRA TASTY 18 OCT 26","","PELTE 188",": MIA","415221315-501 14","328"],["Aldi Extra Tasty","ALDI","EXTRA- TASTY 18 OCT","","PETE 188",": MA","US2213 /15801","Actual"],["Aldi Extra Tasty","Acti","EXTRA TASTY 19 OCT 26","6","PFCTE 188",": 1910","415221315-801 VM","338"],["Aldi Extra Tasty","Acti","EXTRA TASTY 18 OCT 26","6","PACTE 188",": RCIA","Film/ Outer","329"],["Aldi Extra Tasty","ALDI","EXTOR - TASTY","3","PARTE 188","MA MA",": Film/","32g"],["Aldi Extra Tasty","","EXTRA TASTY 19 OCT 26","6","PELTE 188","MIA Yes","45 221355-801","32C"],["Aldi Extra Tasty","Aeni","EXTRA TASTY 2000726","6","PILTE 188",": opiet","115221315-801 W304997","32f"],["Aldi Extra Tasty","Aumi","EXTRA TASTY 22 OCT 26","6","PELTE 181",": Peach","45 221315,801","weight"],["Aldi Extra Tasty","ALDI","EXTRA TASTY 22 OCT","6","D.PCTEL DR",": NA",": 15221315301","32g"],["Aldi Extra Tasty","ALDI","CHRA TASTY 22 OCT","","PALTE 188",": MA","Film/ Outer","weight"],["Aldi Extra Tasty","ALDI","23.10.26","","PFCTE 188",": NA","Film Outer","weight"],["Aldi Extra Tasty","ALDI","","","410156081 V",": NA","","329"],["Aldi Extra Tasty","ALDI","EXTRA- TASTY 22007","6","PFITE 188",": Peach","1522/315801 11146240","32g"],["Aldi Extra Tasty","ALDI","EXTRA -TASTY 24007","6","DELTE 18P","RA MA","1152213/5701 00146742","32G"],["Aldi Extra Tasty","ALDI","EXTRA TASTY \" 23 OCT","6","PELTE 188",": MA","1322/315801 01146740","32g"],["Aldi Extra Tasty","ALD ;","TASTS 2 4 - 1 0 .2 6","3","PELTE -","NIA NIA","? us","329"],["Aldi Extra Tasty","","24.10.26","4","PF06188 4101560815",": Peach","45-221315-8,01 W3","w"],["Aldi Extra Tasty","Also","EXTRA TASTY 26","3","PALTE 180",": MIA","","328"],["Aldi Extra Tasty","ALDI","EXTRA TASTY 25 / OCT/ 26","","PFLTC 188",": NA","","weight"],["Aldi Extra Tasty","","EXTRA TASTY 25./001/24","","PFL75188 4101560810",": AR","","weight"],["Aldi Extra Tasty","Ausi","EXTRA TASTY 25 OCT 26","6","PFLTE 188",": MIA","45221315-8801 44","weight"],["Aldi Extra Tasty","ALDI","EFRA- TASTY 25007","6","87275180 4101560813",": NA","US221315801 11146340","32g"],["Aldi Extra Tasty","ALDI","EXTR-ATASTY","6","PFLTE 188",": MA","US223 /","32y"],["Aldi Garlic and Herb Spatchcock","ALDI \"","GARLICA HORIB","2","CL4008-47 92029",": PSEAL","US -223320-805","508"],["Aldi Garlic and Herb Spatchcock","ALDi","GARLICHHERB","2","( 24008-47",": PSTAL","US -","508"],["Aldi Garlic and Herb Spatchcock","ALDI","GARLICT HERB 11001","2","CL 4008-47",": PSFAL197","US -223320-805","weight"],["Aldi Garlic and Herb Spatchcock","ALDI","GARLICK HERB 2001","2","CL4008-47 92090",": PSFAC",": US","508"],["Aldi Garlic and Herb Spatchcock","Aloi","GARLICHERB","2","CL4008-47 92090","PSTAL 145","US -223320-805","508"],["Aldi Garlic and Herb Spatchcock","Aldi","Ciarlic & Herb 15 Oct","2","PFCGGO 92090","PS FALI75","","sog"],["Aldi Garlic and Herb Spatchcock","Aldi","Garlic & Herb . : 150ct","2","PFCCC099 92090","","US223320505 304719","50g"],["Aldi Garlic and Herb Spatchcock","Aldi","Garlic & Herb : 15 Oct","2","RFCGG099 90290","","","509"],["Aldi Garlic and Herb Spatchcock","Aid","Garlic & Herb 16 Oct","2","PFCGGG9 92090","","","507"],["Aldi Garlic and Herb Spatchcock","Aldi","Garlic & Herb .","2","PFCGG099 92070","","","50g"],["Aldi Garlic and Herb Spatchcock","","EXTRA TASTY 16 26","6","PICTE 188",": MIA","45221315 -","320"],["Aldi Garlic and Herb Spatchcock","Ald","Garlic & Herb . 17 Oct","2","PFCGG099 92090","PSFALIAS 9013169","","weight"],["Aldi Garlic and Herb Spatchcock","Aldi","Garlic & Herb . : 18 Oct","2","PFCAGORA 92070","PSFAL175 91013169","","502"],["Aldi Garlic and Herb Spatchcock","Alpi","BANIC KHERB","2","CL4000-47 3161722",": PS7A2175","US223320-805 131420","309"],["Aldi Garlic and Herb Spatchcock","Aldi","Garlic & Herb 19 Oct","2","PFC44099 92090","PSFALI75 9014096","","weight"],["Aldi Garlic and Herb Spatchcock","Aldi","CCioasrltiicc & Herb 18 Oct","","PFCGC099 C2090",": SFALS","","weight"],["Aldi Garlic and Herb Spatchcock","Alai","GANSIC+HERB","2","CLUDOR 07",": PSTA2479",": 45223320-805","509"],["Aldi Garlic and Herb Spatchcock","Aldi","Ciastic & Herbs : 19 Oct","2","PFC4ac99 91269",": PSFALIAS",": US223320","weight"],["Aldi Garlic and Herb Spatchcock","Ald .","Ciao-lic &Herbs 20 Oct","2","PFCCG09 91269","PSFALI75 9014096","US223320 305","weight"],["Aldi Garlic and Herb Spatchcock","Alai","GARNICHIERB 2200T","","C24008-47 $",": 13THL175",": US223320-805","."],["Aldi Garlic and Herb Spatchcock","Algi","CANDICTHENB 23 OCT","2","C29008-47 828260",": PSTAL175/","US223320-305 1035944","50g"],["Aldi Garlic and Herb Spatchcock","ALDI","GANIC THENB Of 220CT","2","CL4008-47 516148","PSTALITS 9003722","Lis223320-805 W25727",""],["Aldi Garlic and Herb Spatchcock","Alisi","Useby Date: : BANDICTHERB 240CT","2","C24008-47 li",": PSPALTFS","","sog"],["Aldi Garlic and Herb Spatchcock","Aldi","Garlic + Herb 25 Oct","2","PFCGG099 91296","PSFALS 9014096","","55007"],["Aldi Garlic and Herb Spatchcock","ALiSi","GANiCtHERB 250CT","2","C241008-47 810682","PSPA2175 9006149",": 15223320-805","50g"],["Aldi PSO","ALDI","P30","3","YFZZE 187",": MA","152213/5801 W","32g"],["Aldi PSO","ALDI","PSO 11/00+/ 26","","PELTE 187",": N","","32"],["Aldi PSO","ALDI","PSO 12/007/26","3","PELTE 187",": N/","","32"],["Aldi PSO","ALDI","Pso","3","PICTE 131",": MA","USA21315801 0146740","32g"],["Aldi PSO","ALDI","Pro 1222OCT","3","PICTE 187",": NA",": 152213","32g"],["Aldi PSO","ALDI","PSO 12 OCT .","","PELTTEF,, 197",": M","123221315201 ware","32g"],["Aldi PSO","ALDI","PSO 1300T","","9FUTE187 404040821",": MA",": US221315801","3283"],["Aldi PSO","ALDI","950 12 OCT","4","PFUTE 187",": NA","US 221315801","w"],["Aldi PSO","ALDI","PSO 13 OCT","","OFITE187 4010402012",": MA","U5221315801 W303112","weight"],["Aldi PSO","ACDI","15007 : P50","","65187 MA",": MR","410155248 TRINZES","weight"],["Aldi PSO","A2D ;","P.S.o Useby Date: : 15-10-20","","PFLTE -",": N","","32"],["Aldi PSO","ALAT","780 15 26","3","PECTE 187",": MIA","115221315-80 W","328"],["Aldi PSO","AlDi","P.S.O 17.10.26","4","PFILE 187",": NA","","32g"],["Aldi PSO","ALDI","P.S.O","","PFCTE 187",": NA","US -221815-801","32g"],["Aldi PSO","ALA","Useby Date: : PSO 17/10/26","5","PFL76187 4101552488",": HA","","NA..."],["Aldi PSO","ALDI","P.S.O 17 . 1 0 . 2 6","4","PFLTEISE 4101552988VARIOUS","NA NA","US -221815-801","32g"],["Aldi PSO","AlDi","P.S.O 19.1026","","PELIE 187",": NA","US- 221315-801","3"],["Aldi PSO","ALDi","P.S.O 18.10.26","4","PFITE 187","NA NA","US -221315-801","329"],["Aldi PSO","ALDI","950 19007","","97UTE187 401040820","NA m",": Film/","328"],["Aldi PSO","ALDi","950 1500T","","PFITE 178187",": MA",": U5221315801","328"],["Aldi PSO","ALDI","P.S.O","4","PFLTE 187",": NA","05221315-801 1304997","32g"],["Aldi PSO","ALDI","PSO 1 U 2 se /1 by 0 Da / te 7 : 6","","PPL75187 4101052488","","","NA"],["Aldi PSO","ALDI","350 22 OCT","","PELTE 187",": MA",": US221315801","328"],["Aldi PSO","ALDI","950 220CT","","PFUTE1871 4004010824",": MA",": US221315801","weight"],["Aldi PSO","ALDI","Date: : iso OCT","","FUTE187 PRINTED",": MA","U5221315801 W303112","NA"],["Aldi PSO","ALDI","PSO 23 008","","PELTE 187",": NO",": US221315801","32g"],["Aldi PSO","ALDI","P.S.O : 25.10.26","4","PFLTE 187",": NA","","32g"],["Aldi PSO","ALDI","950 25 OCT","","FILTE 187",": NA","US221315801 W303112","Actual"],["Aldi PSO","ALDI","Date: : 750 24 OCT","4","LTE18 +","MA Yes",": US221315801","weight"],["Aldi Rotisserie Spatchcock","ALDI","ROMSSERIE 091007","2","CL hoop",": PSTAL","US -","508"],["Aldi Rotisserie Spatchcock","ALDi","ROSSERIE 1000T","2","CL4008-47 92029",": PSTAL",": US-","508"],["Aldi Rotisserie Spatchcock","","ROMSSERIE","2","CL4008-44 92029",": PSEALIFT","US -","50g"],["Aldi Rotisserie Spatchcock","ALOR","RON'SSERIE 41001","2","CL 4008-",": PSFAL177","US -","A"],["Aldi Rotisserie Spatchcock","ALDI","ROTISSERIE 12001","2","CL 4008-47",": PSTAL",": US","508"],["Aldi Rotisserie Spatchcock","ALDi","ROTISSERIE 12","2","C24008-47 92090","","US -2233.20-805","508"],["Aldi Rotisserie Spatchcock","ALOS\"T","ROMSSERIE 13001","2","CLhoop -",": MEA","US -","A"],["Aldi Rotisserie Spatchcock","Aldi","Rotis : 15 Oct","2","PFCCCC9 92090","","US223320 805","506"],["Aldi Rotisserie Spatchcock","Aldi","Roto","2","PFCGG099 90290","","","508"],["Aldi Rotisserie Spatchcock","Aldi","Rotis 17 Oct","2","PFCCCO 92090","","","50g"],["Aldi Rotisserie Spatchcock","Aidi","Rotis 16","2","PFCGGORG 92090","PSFALI 9014097","","50M"],["Aldi Rotisserie Spatchcock","Aldi","Rotis : 18 Oct","2","PFCCGoa 92090",": PSFALI77","","A"],["Aldi Rotisserie Spatchcock","Aldi","Sweet&Sticky Rotis 17 Oct","2","PFCG4099 92090","","US223320 805","50g"],["Aldi Rotisserie Spatchcock","Aloi","ROTISSERIE 18/10/2016","2","024008-47 5172499",": PST.A)","US223320-805 W81722","509"],["Aldi Rotisserie Spatchcock","","Rotis 18 Oct","2","PFCC9099 9","","","soy"],["Aldi Rotisserie Spatchcock","Aldi","Rotis 190ct","2","PFCCCOPA 92090","","","50g"],["Aldi Rotisserie Spatchcock","ALOi","OCT","2","024000-477 858728",": PSTA2177","45223320-805 2035042","Fcg"],["Aldi Rotisserie Spatchcock","Alch","Rotis 20 Oct","2","PFCCGO79 91269","s PSFAL177","","weight"],["Aldi Rotisserie Spatchcock","Aldi","Rotis 19 Oct","2","PFCCCC99 91269","","","501"],["Aldi Rotisserie Spatchcock","Mzsi","ROTISSERIE","2","",": Yes",": Yes","Sog"],["Aldi Rotisserie Spatchcock","M2ni","ROTISSERIE","2","CL400-3-417 $",": PSTAL177",": Yes","Sog"],["Aldi Rotisserie Spatchcock","ALOL","ROTISSEME 230CT","2","C14008-47 328642",": PSFAL177","US223320-805 1035977","A"],["Aldi Rotisserie Spatchcock","·ALiSi","ROTISSERIE 220CT","2","C24008-47 328642",": PSZ17A.7YTA900/844",": (15273320-805","309"],["Aldi Rotisserie Spatchcock","ALAI","ROTISSERIE","2","C24008-47 32160114","",": Film/","50g"],["Aldi Rotisserie Spatchcock","Aldi","Rotis 24 Oct","2","PFCGG099 91269","","","509"],["Aldi Rotisserie Spatchcock","Aldi","Sweet + Sticky , 25 Oct","2","PFCGG099 91296",", PSFAL","","Actual"],["Aldi Rotisserie Spatchcock","Aloi","ROTISSERIE 250CT \"","2","C24008-47 8218722","PSTAL177 9008722",": 15223320-805","309"],["Asda Extra Tasty Large","","EXTRA TASTYLARGE 1153LOCT/26","","PLCAS 6621","PLCCPOST 718.071","","weight"],["Asda Extra Tasty Large","ASAA","EXTRA TASTY LARGE 16/OCT/16","5","PLCAS6531 4101009361","PLCCP007 718071","","weight"],["Asda Extra Tasty Large","","EXTRA TASTY LARGE","4","PLCASETEL 4101534361","PLCcp007 718071","","weight"],["Asda Extra Tasty Large","ASDA","EXTRA TASTY LARGES 16/ OCT/26","5","PLCAS6521 4/0/10436",": Plecport","Film /","A"],["Asda Extra Tasty Large","ASDA","Useby : LARGE ELTRA-TASTY, 17007","6","PLCAS 6521",": PLecP057","15221315 801","32g"],["Asda Extra Tasty Large","ASDA","EXTRA TASTY","5","PLCAS 6521","PLCCY 718040",": 45221315.801","328"],["Asda Extra Tasty Large","ASDALARGE","Useby Date: EXTRA-","","",": PLCCPOST","U5221315801 10146740","32g"],["Asda Extra Tasty Large","ASDA","EXTRA TASTY 18507","5","PLCAS 6521",": 57","45221315.801 ver304996","328"],["Asda Extra Tasty Large","ASDA","Useby Date: : EXTRA TASTY LARGE 18/10/26","5","PLCAS 6521","Plec post","","Actual"],["Asda Extra Tasty Large","ASDA","EXTRA TASTY 90e7","5","PLCAS 6524",": PLCCP857","45221315.801 Vel","329"],["Asda Extra Tasty Large","ASDA","Extra tasty Lorge 20 /Oct/ 26","5","PLAS6521 4101563714","PlecPost 7180011","","Actual"],["Asda Extra Tasty Large","ASDA","EXTRA TASTY LARGE 10/26","5","PLCAS 6521",": Pleckort","US. 221315-801","weight"],["Asda Extra Tasty Large","ASDA","EXTRA TASTY 22007","","PLCAS6521 4101559381","Dace P057","Film/ Outer","329"],["Asda Extra Tasty Large","ASAA","EXTRA TASTY CARGE 230C726","6","PLCAS 6521",": PLCCP","45221315-801 4304997","weight"],["Asda Extra Tasty Large","","EMRA TASTY \" 23 OCT .","","PLCAS6521 4101565-714",": PLC",": VS2213158.01","A"],["Asda Extra Tasty Large","ASDA","EXTRA TASTY 24007","5","PLCAS 6721",": 718041","US 221315.201","328"],["Asda Extra Tasty Large","ASDA","EXTRA TASTY . 23007","5","",": PLCC","NS221315.901 1309997","325"],["Asda Extra Tasty Large","ASAA","EXTRA TASTY LARGE 24/10/76","5","PLCAS6521 4101565714","","","weight"],["Asda Extra Tasty Large","ASDA","EXTRA TASTY 24 OCT","","PLCAS 6521",": PLCCP057","45221315.801 41304997","328"],["Asda Extra Tasty Small","ASDA","EXTRA 7A574 13007","","PLCAS6531 4101560028",": PLCC",": 45221020.101","307"],["Asda Extra Tasty Small","ASDA","EXTRA TASTY","2","PLCAS 6521",": PLCCP057","41304996 SILVER","327"],["Asda Extra Tasty Small","ASAA","EXTRA TASTY SMALL","","PLEASE531 4101560023","","","weight"],["Asda Extra Tasty Small","ASDA","EXTRA TASTY SMALL 16/10/20","","PLCA56531 4101560028","PLCCP007 718041","AS.221020-101 W305115","NA"],["Asda Extra Tasty Small","","EXTRA TASTY SMALL 15/01/24","","PLCAS6031 4101560028","","AS -221020-10","weight"],["Asda Extra Tasty Small","Asst","EXTRA TASTY","","(PLCAS 652fen",": PiccP057","+45221315.801 ver304996","32g"],["Asda Extra Tasty Small","","EXTRA TASTY SMALL 17/10/24","5","PLEAS6531 4101560028",": PLCC","","NA"],["Asda Extra Tasty Small","ASDA","EXTRA TASTY MOCT","","",": PLCC","","A"],["Asda Extra Tasty Small","","EXTRA TASTY SMALL 18/ OCT/78","","PLIASC531 4101560028","PLCCFOTZ 718041","","30g"],["Asda Extra Tasty Small","ASDA","by Date : : EXTRA TASTY 18","5","PLCAS6531 4101560013",": PLCCP057","AS 221020.201","30g"],["Asda Extra Tasty Small","ASPA","EXTRA TASTY SMALL 19/07/26","","PLCA 56531","PLCCPOSA 718091","","A"],["Asda Extra Tasty Small","ASDA","Extra tasty SS. 19/007/26","","PLCAS6531 4101560028","PLCCP057 712041","","308"],["Asda Extra Tasty Small","ASDA","EXTRA TASTY 22807","","PLCAS 6531",": PLCC",": 45221020.","302"],["Asda Extra Tasty Small","ASDA","EXTRA TASTY 230CT","5","","H Welt","","weight"],["Asda Extra Tasty Small","ASDA","EXTRA TASTY 24007","5","PPLLCCAASS65361531410/1566570 Varjous","PLCC3057 -","A5221020.1017 141303156","weight"],["Asda Extra Tasty Small","ASDA","EXTRA TASTY","5","PLCAS 6531",": Yes","A5221020.101 41305/56","weight"],["Asda Piri Piri Spatchcock","ASDA","Piri Piri","2","PFCMA 054",": PLCAS","AS-223320-119 305720","508"],["Asda Piri Piri Spatchcock","Asda","Piri Piri : 12 Oct","2","PFCMACS4 92283","","","50g"],["Asda Piri Piri Spatchcock","ASPA","PiRi PiRi 12001","2","PFCMAOTY 92283",": PLCAS","AS -","508"],["Asda Piri Piri Spatchcock","ASDA","PiRi\" Piri \" 15001","2","PFCMA0SY 92283",": PLCA5806",": US-","bye"],["Asda Piri Piri Spatchcock","","Pini - Pini 17/10/2016","2","CT400027 PS",": PLCAS806",": US223320-808","309"],["Asda Piri Piri Spatchcock","Asda","Piri Piri 19 Oct","2","PFCMACS4 92283","","US223320 808","Los"],["Asda Piri Piri Spatchcock","ASISH","Pin - Pini 220CT .","2","CT400027 PS",": PSTAL806",": 15223320-808","Sog"],["Asda Piri Piri Spatchcock","Asda","Piri Piri : 25 Oct","2","PFCMACS4 912283","","","508"],["Co-op Garlic and Herb","00-09","GARLIC + HERB","6","PLICP 416",": 31003057","US221315801 0303110","32"],["Co-op Garlic and Herb","CO.OP","GARLIC HORD 15/OCT/ 26","6","PLPCP416 4101563494","PLCCPORT 718041","","weight"],["Co-op Garlic and Herb","COOP","Garlie","6","PipEP416 4101563494",": PLEC","US-221315-801 1804799","32g"],["Co-op Garlic and Herb","Coop","13.10.20","6","TrussingBand: NA",": NA","","A"],["Co-op Garlic and Herb","CO- 09","GARLIC","","401040824 PRINTED",": PLOCPOS7",": US22","32ƒ"],["Co-op Garlic and Herb","CO - OP","GARLIC 18OCT","","P203416 401040824",": PLeePost",": US221315801","."],["Co-op Garlic and Herb","CO-OP","Date: : GARLIC 13007","6","PZPCP 4/6",": PLOCP057","0322/3/5801 00146740","32g"],["Co-op Garlic and Herb","Coop","18.10.20","","PLPCP416 4101563494","","US 221315-801","weight"],["Co-op Garlic and Herb","Cool","22.10.26","4","PLPEPTIC 4101563324","Peach Pad","","329"],["Co-op Garlic and Herb","Coop","","4","PLPCP 416","","VS -",".329"],["Co-op Garlic and Herb","c007","GARUC 23 OCT","","PLPC 416",": PLCCPOST",": US221315801","328"],["Co-op Garlic and Herb","Coop","Useby Date","","PLPCR 416","Pleepost Clear","U -3221315-801","329"],["Iceland Extra Tasty","ICELAND","EXTRA TASTY 14 26","3","¡CEL 115",": PLCCP","45 221315-801","weight"],["Iceland Extra Tasty","iCELAND","EXTRA TASTY 160CT26","6","iCEL 115",": PLCCP","452213.5-801 44","NA"],["Iceland Extra Tasty","ICELAND","EXTRA TASTY 17 OCT 26","6","ICEL 115","PLCCP OS7","45221315-501 14304942","weight"],["Iceland Extra Tasty","ICELAND","EXTRA TASTY 18027","6","",": all","","32g"],["Iceland Extra Tasty","","EXTRA TASTY. 19 26","","iCEL 115","PECEP 057","C15221315 sol","328"],["Iceland Extra Tasty","ICELAND .","EXTRA - TASTY 21007","","",": PLCCPOST",": T","33"],["Iceland Extra Tasty","ICELAND","EXTRA-TASTY 23007","","ICELITS 4101556725",": PLCC",": SILVER",":"],["Iceland Extra Tasty","","EXTRA TASTY 230CT26","","iCEL 115","PLCCP 057","45221315-201 IN","328"],["Iceland Extra Tasty","LiCELAMIS","EXTRA TASTY 24.OCT 26","6","ICEL 115","","US 221315-801","NA"],["M&S AYR Rotisserie","M & S","RorisSERIE Useby Date","5","PLOMA 980","PLCCP057 708688","AS221165.101 41304837","4rs"],["M&S AYR Rotisserie","","AYR 09.10.26","5","PLOMA 930","PCCCP 027","","the"],["M&S AYR Rotisserie","MS","AYR","5","PLOMA 930",": PLCCP","A5221165-101 VM","NA"],["M&S AYR Rotisserie","MS","AYR 10.10.26","5","PLEMA 980","","","44p"],["M&S AYR Rotisserie","Mits","RorisSERIE 10/10/2026","5","PLCMA 930",": PLCC","AS221165.101 41304837","448"],["M&S AYR Rotisserie","Mts","RoziSSERIE 13/10/2026","5","PLCDA930 4101560023","PLCCT017 718041","A522465.101 41304837","."],["M&S AYR Rotisserie","MAS OCADO","ROTISSERIE 13/10/2026","5","PLCMA 930","PLCCt0of 712041","AS221165.101 l304837","weight"],["M&S AYR Rotisserie","MAS","ROTISSERIE Useby Date: 19/10/26","","PLOMA930 410156023",": PLCCPOS7","AS- 22116510","44g"],["M&S AYR Rotisserie","M + J OCADO","RONDSFRE 14110/26","","PLCMA930 Yes",": PLCCR057","AS22 /165101","weight"],["M&S AYR Rotisserie","M + S","AYR 15.10.26","4","PLCMA 930","",": A5-221165-101","449"],["M&S AYR Rotisserie","M+S AYRAB","13.10.26","4","NIRTE 008","Plee Post","","A"],["M&S AYR Rotisserie","M + S","AYR","4","JLCHA 931",": PLOCPOS7","AS221165101 W303112","why"],["M&S AYR Rotisserie","M+S OCADO","AYR 16.10.76","","ALCMA 530",": PLCCPOST","AS221165101 W303","ung"],["M&S AYR Rotisserie","M + S","AYR 16.10.16","4","JLCHA 930",": PLCCPOST","A5224165101/ W303112","ung"],["M&S AYR Rotisserie","M + S","AYR 17/10/2026","4","P2CMA 930",": 718044","AS 22","ung"],["M&S AYR Rotisserie","MYS","AYR 17/10/2026","3","",": PEA012020","","ang"],["M&S AYR Rotisserie","M+ S OCADO","AYR 17.10.06","","",": PLCCPO","","hrg"],["M&S AYR Rotisserie","M + S","AYR : 20.10.20","4","PLCMA930 4101360023",": PLeepot","","Actual"],["M&S AYR Rotisserie","M + S","AYR 20.10.26","4","PLCMA980 4101560023","","","449"],["M&S AYR Rotisserie","MIS","AIR 21/10/76","5","PLCMA -",": PLCCFort","","A"],["M&S AYR Rotisserie","MS","Date: : AYR 21.10.26","6","PLOMA 930",": PLCCP","AJ221165-101 14304837","hug"],["M&S AYR Rotisserie","M & S","RotissaRIE 20/10/2026","5","PLCMA 930",": 2048","AS221165 .","448"],["M&S AYR Rotisserie","MS","A","6","PLOMA 930",": PLCCP","A5221165-101 14304837","Actual"],["M&S AYR Rotisserie","M/ S OCADO","AYR 22.10.26","6","PLOMA 30","PLCEP 057","AS 221165-101","weight"],["M&S AYR Rotisserie","M & S","AYR 23 9 0 1 4 6","","PLCMA930 4101503737","PLCCPOST 718041","","Actual"],["M&S AYR Rotisserie","M + S OCHO","ROTISSERIE . 23/10/2026","5","Trussing Band:",": PLCCP057",": $","448"],["M&S Aromatic Butter BDF","M + S","AROMATIC BUTTER . 09/10/26","","PPCBG150 4/0/969641",": ROMAL","AS -","602"],["M&S Aromatic Butter BDF","M + S OCADO","AROMATIC BUTTER 10/10/2026","3","PFC66 150",": 1027","AS 322040-51","608"],["M&S Aromatic Butter BDF","M +S","AROMATIC BUTTER 10110/26","","",": PLCMA)","AS 322040-71","600"],["M&S Aromatic Butter BDF","M8S","; AROMATIC 13/10/26","3","PFCAG 150",": PLOMA","","60g"],["M&S Aromatic Butter BDF","MS","AROMATIC MARITATED 14.10.26","3","PICGG WO",": PCCMA","Ah 3220040-J","bog"],["M&S Aromatic Butter BDF","M + S","16.10.26","","Preca 150","","","Gog"],["M&S Aromatic Butter BDF","M-+ s","17.10.26","3","PFC GG","Silver Yes","; 40126941","60g"],["M&S Aromatic Butter BDF","M+ S","AROMATIC BUTTER 20.10.26","","97066150 no40402440",": FLORA","A53220 401","Boj"],["M&S Aromatic Butter BDF","M+S OCADO","AROMATO BUTTER 20.10.26","","37006150 401040824",": 32CMA",": Film/","weight"],["M&S Aromatic Butter BDF","M+ S OCADO","INDIAN BUTTER AROMATIC 21.10.26","","RFCGGA05 /",": PLCMA","A5322040sl W303112","weight"],["M&S Aromatic Butter BDF","M + S","AROMAICINDIAN 21.10.26","4","RFCGGISO novo40240",": PLOMA",": AS222040Se","og"],["M&S Aromatic Butter BDF","M+ S","AROMATIC BUTTER 22.10.26","4","9FCGG150 ,",": PLONA",": AS32204051","60g"],["M&S Aromatic Butter BDF","M+ S OCADO","AROMATIC BUTTER . 22.10.16","","3FCGG 150",": PLOMA","A5322040 51","60g"],["M&S Aromatic Butter BDF","M+ S","AROMATIC BUTTER 23.10.20","3","PFCGG 150",": PLCHA","AS3220WOSI 300","609"],["M&S Aromatic Butter BDF","MIS OCADO","AROMATIC BUTTER H 23.10.26","3","37096150 401040824","BLOMA 1027","AS37204051 W302112","60g"],["M&S BBQ Marinated BDF","MTS ORDO","BBQ 09/10/26","","PFCGG 1570",": PLOMA","Film/ Outer","weight"],["M&S BBQ Marinated BDF","M+ S","BBQ 09/10/26","3","PFCGG 150","PLONIA 1025","AS -","60g"],["M&S BBQ Marinated BDF","","BBQ 10/10/2026","","PFCGG 150",": PEMA","AS 322040","609"],["M&S BBQ Marinated BDF","Mts .","BBQ 13/10/26","3","PFCG6180 4101569641",": PLCMA023","AS -","weight"],["M&S BBQ Marinated BDF","","BB9 13/ 10.26","","PF C","PLCMA 1020","","60g"],["M&S BBQ Marinated BDF","MS","BBQ . MARINATED","3","PFCGG 150","","","60%"],["M&S BBQ Marinated BDF","M + s","BBQ 15.10.26","","PFCGGISO CHATR",": PICHA","AS32204051 12303112","60g"],["M&S BBQ Marinated BDF","M+S OCADO","BBQ 15.10.26","","PFCGGISO 401040824",": PLOMA",": AS322040","60g"],["M&S BBQ Marinated BDF","M + S","BBQ 16 . 1 0 . 2 6","3","PFCAG. 160","PICMA 1023","A5-322040-31 wyo0off","Actual"],["M&S BBQ Marinated BDF","M + s","17.1026","3","PFER a","","Film/ Outer","60g"],["M&S BBQ Marinated BDF","M+S OCADO","BBQ 20.10.26","","PFCGG /50",": PICHA",": AS322040S","609"],["M&S BBQ Marinated BDF","MtS","BBQ 20.10.26","","97066150 401040824",": PLOMA",": A5322040","weight"],["M&S BBQ Marinated BDF","M + S","BBQ 21.10.26","","","","","60g"],["M&S BBQ Marinated BDF","M+S OCADO","BBQ 21.10.26","","PFCGGISO 401040824",": PLOMA",": A532204051","weight"],["M&S BBQ Marinated BDF","","BBQ 22.10.26","4","PFCGG 150-","","Film/ Outer","609"],["M&S BBQ Marinated BDF","M + s","BBG 22.10.26","4","PFCGG150 -",": PLOMA","NAS32204051 W303112","609"],["M&S BBQ Marinated BDF","M+ S","BBQ","3","77066150 CLEAR",": PLOMA","A5322040 51","60g"],["M&S BBQ Marinated BDF","M+S OCADO","BBQ","3","PFOGG ISO",": PLCMA","AS32204OSI 4303112","A"],["M&S Butter Basted Joints","MMS","But fee Joints 0 8 . 1W 0 6","","5410205 N",": Peach","","18y"],["M&S Butter Basted Joints","MB","Fritter Joints : 05 10 46","","5410292 92580","9005805 (Yes","Film/ Outer","vg"],["M&S Butter Basted Joints","M + S","BUTTERBASTEDJOUNT 08/10/2026","5","5-410205 83961","PLCMA994 9005803","AS -","188"],["M&S Butter Basted Joints","Mts","BUTTEGRASPEJDOINT","5","5-410205 83961",": PLCMA994","AS -320994-101","488,"],["M&S Butter Basted Joints","MAS","BUTTER BASTED JOINT","","C24008-47 8166082",": 0008784","AS220997-101 133780","Actual"],["M&S Butter Basted Joints","MAS","PutterbostedJoints 13/10/2026","5","024009-47 8161849",": PLOMA294","AS320997-101 W3122","189"],["M&S Butter Basted Joints","MAS","BUTTEJROINT 14/1 U 0 se /2 by 01 D 6 ate","","C2400847 8161849",": PLCM1999","15820347-101 1831722","18"],["M&S Butter Basted Joints","","BUTTERBASTEDJOINT","","5 410205","PLEMA 994","AC- 320994-101","A"],["M&S Butter Basted Joints","M +S","BUTTER BASIEN JOINT 15/10/2024","5","$ -410205",": PICHA","AS -320997--101","188"],["M&S Butter Basted Joints","","BUTTERBASTED JOEN'T 15/10/2026","5","§ -","PLCMA994 9005809","AS-320997-101 W304438","188"],["M&S Butter Basted Joints","Ms. Joint","BUTTER BASES","","5-410205 83961","PLACHA994 WB","AS 3207031639","NA"],["M&S Butter Basted Joints","(M+S) Ocodo","(Salt & R pepp)eBruttcearsteJdoint2s0/10/26","5","5410205 89205","PLCMA994 9005803","AS320997 364652","Of"],["M&S Butter Basted Joints","M +S","Butter Basted Joints","2","5410205 89205","","","NA"],["M&S Butter Basted Joints","M +S","by Date","5","8410205 89205","PLCMA994 9005803","","Ny"],["M&S Butter Basted Joints","M +S","Butter Basted","5","S410205 0128076","","","Ng"],["M&S Butter Basted Joints","(M+S) Ocado","Butter Banted Joints","5","5410205 0128076","","","Actual"],["M&S Garlic and Herb","MS","GutRiie 09.10.26","6","PLCMA 923",": PLEEP","As 221165-101","448"],["M&S Garlic and Herb","MS","GARLIC HERB 10.10.26","3","PLOMA 923","","Ab 221165-10","448"],["M&S Garlic and Herb","MTS","GARLIC 13/10/26","","PLOMA 923",": 19LCC","J -22.11.65","A"],["M&S Garlic and Herb","MTS OLADO","GARLIC 13/10/26","3","PLOMA 923","PLCC POST",": AS-221165-701","ung"],["M&S Garlic and Herb","M + S","GARLIC HERB 14/10/2026","6","P2CMA 923",": Preciony","75221165-101 W/","445"],["M&S Garlic and Herb","","GARLIC HERB 14/10/2026","6","P2CMA 923",": Peach","AS 221165-101","448"],["M&S Garlic and Herb","M & S","GALic . 15/10/2026","5","\"LCMA 923",": PLCCPE57","A3221165.101 4/304837","448"],["M&S Garlic and Herb","","GARLIC 15/10/2016","","PLCMA923 4101553739",": PLCCROS7","45221165.101 W1304837","448"],["M&S Garlic and Herb","M + S","GARMC 16.10.26","4","PLCMA 923",": 32003057",": A522405101","weight"],["M&S Garlic and Herb","M + S","GARUC 17.10.26","","PLOMA 923",": PCCPOS7",": Film/","weight"],["M&S Garlic and Herb","MIS","GARLIC & HORB 20/10/16","5","PLOMA 923","PLCCPORT 718041","","weight"],["M&S Garlic and Herb","M + S","Garlie : 21.10.26","","PlemA923 NIRTE008","","AS 221165-101","498"],["M&S Garlic and Herb","M &S","GARLIC 8 HERB 22/10/26","","PLCMA 923","","AS -","NA"],["M&S Garlic and Herb","M8","GARLIC & HERB 23/10/26","","PLIMA923 4101553739","PLCC P057","","NA"],["M&S Hot Deli BBQ","","13.13.8 03-10-26","1","MTRUM -",": PRIMA","PLinn -102","weight"],["M&S Hot Deli BBQ","Mits","13.B. 08 10-10-26","","","",": 5-400210","weight"],["M&S Hot Deli BBQ","m + s","13.13.8 10 -1 0- 2 6","","S -400210","·PLIMA -","PLINKh -","MA"],["M&S Hot Deli BBQ","M + S","13.13.8 . 10-10-26","1","5-400210 5107127001","PLIMA -","PL -","N/"],["M&S Hot Deli BBQ","M+S","BBQ 1.8 13/10/26","","S -",": PLLU4003",": PLNGG102","Net"],["M&S Hot Deli BBQ","","BBQ 1.1 13/10/26","1","5-400210 5/07197061",": PLLMA003","PLAGG 102","NHA"],["M&S Hot Deli BBQ","Mts","BBQ 161/10/2016","","5-400210 31274598",": PHLM003",": Film/","weight"],["M&S Hot Deli BBQ","MIS","BBQ","1","S-400210 512174948",": PILMA003","PAN66102 00624","N/A"],["M&S Hot Deli BBQ","MES","BBQ (Large : 14/10/26","","Flexopack 8400210","PLLMA003 719617","","weight"],["M&S Hot Deli BBQ","M + S","BBQ 1.8 15/10/26","","5.400210 5/07/94720","PILMA 003",": PLNGG","NA"],["M&S Hot Deli BBQ","M+S","BBQ 1.1 15/10/26","1","S -",": PLLMA",": PLAGG102","N/A"],["M&S Hot Deli BBQ","M+S","PBQ . 16/10/2016","","3-400210 5/2172/288",": PLLMA003",": PLHGGIO","weight"],["M&S Hot Deli BBQ","MIS","BBQ","","8-400210 5121721288",": PLLMA","P2466102 00782","N/D"],["M&S Hot Deli BBQ","M &S","BBQ (Large : 16/10/26","","Flexopack 3400210",": PLLMACG3","","NA"],["M&S Hot Deli BBQ","M +S","17/10/2016","","3-400210 512179598",": PILMA003","PLAGGIOR 0094","weight"],["M&S Hot Deli BBQ","Mis","BBQ (Small ) : 17/10/26","","Flexopack 3400210","","","NA"],["M&S Hot Deli BBQ","M + S","13.13.8 20-10-26","","5-400210 510750767",": Peach","561685 Yellow","weight"],["M&S Hot Deli BBQ","M + S","B.B.O 20.10.26","","15-400 °210",": P22MA","bh -","weight"],["M&S Hot Deli BBQ","MAS","BBQ 20/20/26","","3-400810 5121754962",": PLCM4003",": PANGG","weight"],["M&S Hot Deli BBQ","M + S","13.13.8 21-10-20","1","5-400210 5031206761",": PELMA",": Film/","weight"],["M&S Hot Deli BBQ","M+ S","B. 13. 21-10-26","1","5-4100210 503174261","","PLNun -","N/"],["M&S Hot Deli BBQ","mys","B.B.8","","3-400210 5107.127067","P2LMA -","PNN -","N"],["M&S Hot Deli BBQ","M + S","B.B.8","","3-400210 5107127067",": PLZMA",": PNNun","N/"],["M&S Hot Deli BBQ","M + S","13.13.8 : LARGE 23-10 7 20","1","3-400210 5107127091","PELMA -","","weight"],["M&S Hot Deli BBQ","m+s","B.B.S : 23-10-26","1","","","Paman -","N"],["M&S Hot Deli Butter Basted","MYS","BUTTERBAITED 09/10/2016","","5-400810 5107197002",": PLIMADOS","B07466101 00762","weight"],["M&S Hot Deli Butter Basted","m + s","by Date : : 09-10-6","","5-400210 5107177002","PALMA A","PLWhh -","N/"],["M&S Hot Deli Butter Basted","M + S","09-10-26","","3-400210 .","","PLNKh -","weight"],["M&S Hot Deli Butter Basted","M + S","094016","","5-40021 5107",": PRMA","Plan -","N/"],["M&S Hot Deli Butter Basted","M +S","BUTTER : 10-10-26","","Trussing Band:",": PILMA","","N"],["M&S Hot Deli Butter Basted","MYS","Butter : 10-10-26","1","5-40040 510712201","PLAMA -",": Porn","N/"],["M&S Hot Deli Butter Basted","MAS","BUTTER BASED 1.8 09/10/26","","5-400210 510719-7001",": PILMADOS","PLAGG 401","weight"],["M&S Hot Deli Butter Basted","m + s","BUTTERBAsted 10-18- 20 24","1","1100210 5107127001",": PILMA","PLIV -","N/"],["M&S Hot Deli Butter Basted","M + S","10-10-26","","3-400210 510712307","PELMA -","","weight"],["M&S Hot Deli Butter Basted","","BUTTER BASTED 1.8 . 13/10/26","1","S- 400210",": PELMA003","PLNGG 101","RCCA"],["M&S Hot Deli Butter Basted","","BUTTER BASTED 2.2","1","S -","PLEMA003 719617",": PLNG6101","WILA"],["M&S Hot Deli Butter Basted","M+S","BUTTERBASTED 13/10/2016","","S- 400210",": PLLMA003","PolNG6101 Film/","weight"],["M&S Hot Deli Butter Basted","M+ S","BUTTER BASTED 13/16/2026","","S-400210 5100724958",": PLIMA003",": PLH66","N/A"],["M&S Hot Deli Butter Basted","M + S","Basecd : 14-10-26","1","5-400210 5167127062","PRIMA -003","Film/ Outer","weight"],["M&S Hot Deli Butter Basted","M + S","14-10-26","1","5-400210 5107197067",": PLLMA","","N/"],["M&S Hot Deli Butter Basted","Mis","Butter Basted (small)","1","","","","NA"],["M&S Hot Deli Butter Basted","MAS B\" M.M.","BUTTERBASTED 1.8 14/10/26","","5-400210 5/2/7749",": PLLMA003",": PLAGGIOL","NiA"],["M&S Hot Deli Butter Basted","MES","BUTTERBASTED1.1 14/10/26","","51217749 CLEAN","PLLMA 003","PANGGIL 00942","NIA"],["M&S Hot Deli Butter Basted","M+S","BUTTER BASTE1) 15/10/2026","",". 8-400210",": PLLMA003","PANGG 101","N/A"],["M&S Hot Deli Butter Basted","M + S","BUTTER BASTED 15/10/2026","","5-400210 312172448",": PILMA","PLN66101 00724","N/A"],["M&S Hot Deli Butter Basted","M + S","ButterBasted(Sma)ll Useby Date: 16/10/26","","Flexopack 3400210","","PANGGIO 562730","NA"],["M&S Hot Deli Butter Basted","M + S","16 -1 0- 2","","5-400210 5107177050",": PLIMA","","N/"],["M&S Hot Deli Butter Basted","MIS","BUTTER BASTED 16/10/2016","","S -400210",": PLLMA003",": PLN66101","NA"],["M&S Hot Deli Butter Basted","M/S","BUTTER BASTEW 16/10/2076","","3-400210 3171007048",": PLLMA003","PLNG6101 .","weight"],["M&S Hot Deli Butter Basted","Mts","Butter Basted 1.1 17/10/26","","","","","weight"],["M&S Hot Deli Butter Basted","Mts","B|B 1.8 17/10/26","1","S -400210","PLMA003 719617","PING Glol","weight"],["M&S Hot Deli Butter Basted","MAS","BUTTER BASTED 17/10/2016","","3-900210 312172499",": \"PLLMA003","PING6 /01","N"],["M&S Hot Deli Butter Basted","MYS","BUTTER BASTED 77/10/2016","","5-400210 512177499","",": PINGG","weight"],["M&S Hot Deli Butter Basted","MAS","Butter 20. 1 0 .26","1","5-400210 510712767",": PLLMA","PLW -","W/"],["M&S Hot Deli Butter Basted","","","","","N /","","weight"],["M&S Hot Deli Butter Basted","M +S","20-10-26","1","S -",": PLEMA","PLohn -","weight"],["M&S Hot Deli Butter Basted","MIS","BOTTEN BASTED 20110126","","S -400210",": PLUM","22N6610 006442","MA"],["M&S Hot Deli Butter Basted","M+S","BUTTER BASTEA 20160/2016","1","3-400010 5121007495",": PLLMA",": PLN66101","NA"],["M&S Hot Deli Butter Basted","M + S","134ttor 21-1 0 -2 6","","5-400210 50317067",": P2LMA","561752 BLUE","N/A"],["M&S Hot Deli Butter Basted","M + S","BUTTER BASeed","","5-400210 3","","PLWhh -","N/"],["M&S Hot Deli Butter Basted","M + S","Butter : 21. -10-26","1","3-400216 303120676",": PILMA","","weight"],["M&S Hot Deli Butter Basted","M + S 1.8","Date: : 221026","","5107127024 esear","","","NA"],["M&S Hot Deli Butter Basted","M +S 1.1","22.1026","","","PLIMA OOJ","","NA"],["M&S Hot Deli Butter Basted","M + }","","1","3-400210 3","","PLW101 561757","N/"],["M&S Hot Deli Butter Basted","M +S","23-16-2 26","","5-400210 510",": P22MA","","MA"],["M&S Hot Deli Butter Basted","M + S","BUTTERBASled 23.10.26","","S- 400210",": PLZMA","·PLovrim -101","NIA"],["M&S Hot Deli Butter Basted","MS","BUTTER BASTED CHARGE23.10.26","","5400210 5107197091","","PLMGG 101","MIA"],["M&S Hot Deli Butter Basted","MS","BBUuTtieTrER BASTED SMALL 23.10.26","","5-400210 5107197091","PILMA 003","","weight"],["M&S Jalapeno and Herb Spatchcock","M &S","JALAPENO 11/10/2026","2","PEOMA 054","PLOMA 998","AS -","608"],["M&S Jalapeno and Herb Spatchcock","M+ S","JALAPENO","2","PFCMA 054",": PLEMA","AS -223320-119","608,"],["M&S Jalapeno and Herb Spatchcock","Mis","Salapera Herb 11 / 10 /2 6","2","PFCMA054 92283","PLOMA 998","","60"],["M&S Jalapeno and Herb Spatchcock","(M+s) Ocado","Jalapeno + Herb 12 10 26","2","PFCMA 054",": PLCMA","US 223320","602"],["M&S Jalapeno and Herb Spatchcock","Mis","Jalapeno + Herb 12/10/26","2","PFCMA 054",": PLCMA","US 223320","weight"],["M&S Jalapeno and Herb Spatchcock","M &S","JALAPENO 15/10/2026","2","CT 400027","PLCMA 998","US -223320-808","600"],["M&S Jalapeno and Herb Spatchcock","M +S","Jalapeno + Herb 15/10/26","2","PFCMAQS4 92283","","","Gos"],["M&S Jalapeno and Herb Spatchcock","Mts","GREENJALAPENO 16/16/2016","2","CT400027PS 3161499",": PLCMA",": US223320-808","A"],["M&S Jalapeno and Herb Spatchcock","M+S","GREENJALAPENO & HERB 1/110/2026","2","CT400027PS 31614920","PLCMA998 9001748","US223370-808 131728","Actual"],["M&S Jalapeno and Herb Spatchcock","Mts","GREENJACAPEHOHERB","2","CT4000 27",": PLCM4998",": US223320-808","Actual"],["M&S Jalapeno and Herb Spatchcock","MIS","GREEN SALAPENO 19/10/2078","2","CT400027PS .",": PLOMAYER","15223320803 135970","Actual"],["M&S Jalapeno and Herb Spatchcock","M +S","Jalapeno Herb 22/10/26","2","PFCMA054 92283","PLCMA998 9013499","","weight"],["M&S Jalapeno and Herb Spatchcock","M +S","Jalapeno • Herb 23/10/26","","PFCMACS4 92253","","","609"],["M&S Jalapeno and Herb Spatchcock","M+S","Jalapeno &Herb : 24/10/2","2","PFcm A054","","US2233 20","weight"],["M&S Jalapeno and Herb Spatchcock","M +S","Jalapeno + Herb 25/10/26","","PFCMAG54 92283","PLCMA998 9013499","US 223320","A"],["M&S Jalapeno and Herb Spatchcock","M+s)Ocado","Jalapeno +Herb 25/10/26","2","PFCMA054 92283","","","602"],["M&S PSO","MS","P &O 11.10.26","5","PLCMA 931",": Piccp","A5322040-10345 4400077","628"],["M&S PSO","MS","PSO 12.10.26","3","PLOMA 9","PLCCP 057","45322040-103-45 14","628"],["M&S PSO","MIS","PSO 15/10/24","3","PLCMF931 4101553737",": BLOC","AS- 322040losus","662205"],["M&S PSO","M + S OCADO","PSO 15/10/26","3","PLCMA931 4101555737",": PLECPOSI","A5-322040-1034 )","62g"],["M&S PSO","M + S","PS","5","PLCHA931 4101553438",": PLCC3077","AS 32","629"],["M&S PSO","M & S","So","","PLCM1931 4015","PLCCHOT7 718010","AS 322040","625"],["M&S PSO","","PSO","","RCC RA93",": PLCCPO57","AS 322040.00345","628"],["M&S PSO","M + S","Date: : P50 18.10.76","4","PICMA 931","ALCROS *","AS32204010305 WN303112","620"],["M&S PSO","M+S OCADO","950 18.10.76","","PLCMA 93",": PICCROS7","AS322040103US 4303112","628"],["M&S PSO","MIS","950 19.10.16","","","",": PZEMA","60"],["M&S PSO","M+ s","P.S.","3","PLEMAIST Y19550738","","A5322040-31 W600531","NA"],["M&S PSO","","PSO 22/10/76","","PLOMASSI 4101503778","","","weight"],["M&S PSO","MTS","22/10/2026","5","Yes /",": PCAL1979.0038",": AS","&"],["M&S PSO","MS","PJO Useby Date","5","PCCMA 931","","A5322040-10345 44000ff","628"],["M&S PSO","MAS","PSO .","5","PLCMA931 4101533738",": PLCC",": KS322040.103","628"],["M&S PSO","M8S","Pso 24/10/76","5","PLOMA931 4101083738","PLCCPOST 718091","","62y"],["M&S Rotisserie Joints","M+ S","Rotis Joints Q 10/26","","3410205 92580",": PLOMAR93","","18"],["M&S Rotisserie Joints","(MHS) Coado","Rotis Joints ku 1851 99/1/10/020/20","5","5410205 92580","PLCMA993 9014074","AS 320997101","18"],["M&S Rotisserie Joints","MS","Rotisserie biuls","","Shiodos 92580","PLUMAGGS 9014079","A5520987-61 303791","irg"],["M&S Rotisserie Joints","","ROTISJOINT 10/10/2026","","5-410205 83961","PLCMA993 2014074","AS -","189"],["M&S Rotisserie Joints","MIS","Roni's Joint 10/10/2026","","S -",": PLCM4993","AS -","188"],["M&S Rotisserie Joints","MX $","Useby Date: : ROTISJOINT 11/10/2026","5","5-410205 83961","PLOMA 993",": AS","188"],["M&S Rotisserie Joints","MTS","NOTISSJOINT. 15/10/2026","5","024008-47 8187775",": PLOMA993","AS320997-101 W35729","188"],["M&S Rotisserie Joints","Mts","Rotiss Joint","","024008-47 $182775",": P2CMA993","AS320907-101 133729","18g"],["M&S Rotisserie Joints","M+SOCADO","ROTT'SJOINT 16/10/2026","5","5-410205 83961",": PLCMA","AS -320994-101","188"],["M&S Rotisserie Joints","","ROT's JoinT 16/10/2026","","CLEAR Yes",": PLCM#","AS-320997-10110304438 SILVER","188"],["M&S Rotisserie Joints","M+S OCADO","ROT'S JOINT 16/12/2006","","5-410205 83961",": PICMA",": 320997-701","189"],["M&S Rotisserie Joints","M & S","ROTISJONT 16/10/2026","","NH Yes","",": AS","185"],["M&S Rotisserie Joints","MS JOINT","ROTISSERIE 18/10126","","5-610205 83901","","! AS","188"],["M&S Rotisserie Joints","ocad f o oints","Robis : 21.10.26","","","","15. 320997-101","189"],["M&S Rotisserie Joints","Mts Joints","Retis 19.10.26","","","","","188"],["M&S Rotisserie Joints","GHESTSECG","ROTISS JOINT 19/10/2016","5","",": PLCMA993","","189"],["M&S Rotisserie Joints","M +S","RROotTi'IsS JOINT 21/10/2026","","$ -410205",": PLCMA","AS -","188"],["M&S Rotisserie Joints","MES","Retis Joints 21/10/20","","8410205 89205","","","Arg"],["M&S Rotisserie Joints","","Rotis Joints 21/10/26","5","5410205 89205","","","189"],["M&S Rotisserie Joints","(M+S) Ocado","Rotis Joints Useby Date","5","S410205 0128076","","","A"],["M&S Rotisserie Joints","M +S","Rotis Joints 23/10//1260/2","5","S410205 0128076",": PLCMA993","","weight"],["M&S Salt and Pepper BDF","M+S","SALT PEPPER","","4101969641 CLEAR",": PLEMA","AS 322040-51","60s"],["M&S Salt and Pepper BDF","MES OCABO","SALTTREPPEN 09/10/26","","AFCGG150 .",": PCCMALO2C","03-322040-51 W","Actual"],["M&S Salt and Pepper BDF","M +S","SALT PEPPER","3","PF C",": PLCMA","AS 322040","weight"],["M&S Salt and Pepper BDF","MS","SALT PEPPER 13.10.26","3","PFCGG 150","","A5322040-51 14400077","weight"],["M&S Salt and Pepper BDF","MS","SALT PEPPER 14.10.26","3","PFCGG 150","","45322040-51 W400077","GOP"],["M&S Salt and Pepper BDF","M + S","SALT PEPRUR 15.10.26","","PTCGGISO 4010408210",": RLICHA",": AS.32204051","609"],["M&S Salt and Pepper BDF","M+ S OCADO","SALT PEPPER 15.10.26","","3FCGG 150",": FLCMA","A3322040 SI","609"],["M&S Salt and Pepper BDF","M + S","Salt : pepper 16.10.26","3","PF C","","","689"],["M&S Salt and Pepper BDF","M +S","SALT & 17 .1 0 . 2 6","3","PFCQG150 4101569641","PLOMA 1029","AS -","weight"],["M&S Salt and Pepper BDF","M +S","Salt & peppe R 2.0.10.26","3","PFCQ R","","A5-322040 .","weight"],["M&S Salt and Pepper BDF","M+S","SALT PEPPER 20.10.76","","37066150 CLEAR",": PICMA","AS32204051 W303112","605"],["M&S Salt and Pepper BDF","Nts OCADO","SALT PEPPER 20.10.26","","77066150 401040824","PLCHA N029","Film/ Outer","60g"],["M&S Salt and Pepper BDF","M+S OCADO","SALT PEPPER 21.10.26","","","","","60g"],["M&S Salt and Pepper BDF","Mits","SALT PEPPER 16 21.10.76","4","77066150 CLEAR",": PLCMA","A532204051 W303112","609"],["M&S Salt and Pepper BDF","M +S","SALT PEPPER 22.10.26","","97066150 4040402020",": PLOMA","AS32204051 W303112","60g"],["M&S Salt and Pepper BDF","M + S OCADO","SALT PEPPER 22.10.26","4","9FCG6150 401040824",": PLCHA",": AS32204051","weight"],["M&S Salt and Pepper BDF","M + S","","","PFCan 150","",": AS","60g"],["M&S Salt and Pepper BDF","M + S OCADO","SALT PEPPER","3","PPCGG 150",": PLOMA","AS32204051 1303112","609"],["Ocado CROWN","Ocado","Salt Pepper . Crowns","2","PFCCCORS 91377",": PleMASI6","","28"],["Ocado CROWN","","Salt & Pepper Crowns 12 Oct","2","PFCCC095 91377","PLOMASI6 9014100","","Actual"],["Ocado CROWN","OCADO","SALTA PEPPEN 15001","","Czy000-47 516148","PLOMA 816","145221920-101 1133722","A"],["Ocado CROWN","OCADO","SALTHPEPPER","","77C66095 9/377",": PLCMA","AS-221920-101 4/432019SILVER","288"],["Ocado CROWN","OCADO","SALT TPEPPERL 18/10/2016","2","024008-47 89382",": PheMA","AS2-1920-10i SILVER","Actual"],["Ocado CROWN","","FROWN 18/10/2","2","024008-07 816172",": PICHA-",": A5221920-101","weight"],["Ocado CROWN","OCADO","CROWIN 19109826","2","CL400841 8/072",": PLCMP",": 5221500-1011","289"],["Ocado CROWN","","Crowns 19 Oct","2","PFCCCOAS 91377","","","28g"],["Ocado CROWN","","Crowns","2","PFCCC099 91377","PLOMASIL 9014100","","287"],["Ocado CROWN","Ocado","Crowns 22/10/26","2","PFCGCOAS 91377","","","weight"],["Ocado CROWN","Ocado","Crowns 23/10/26","2","","s PLCM","","289"],["Ocado CROWN","Ocado","Crowns 22/10/26","2","PFCGC095 91377","","","289"],["Ocado Extra Tasty","OCADO","EXTRA TASTY 15.10.76","","7LCHA 925","PLECPOST 685817",": A5224165101","36g"],["Ocado Extra Tasty","OCADO","EXTRA TASTY 17.10.26","6","PLOMA 925",": PLCCP","A5221165-101 44304637","368"],["Ocado Extra Tasty","","EXTRA TASTY 19/10/2016","","PickeA925 401563535",": 012",": A5224165","weight"],["Ocado Extra Tasty","OCIADO","EXTRA TASTY 22/10/2026","","CMA 927",": PLCC",": 15221165-01","A"],["Ocado Extra Tasty","OCADO","EXTRA TASTY . 24.10.26","","PLCMA 925",": PLCCP","AS 221165-101","368"],["Ocado Extra Tasty","OCADO","EXTRA TASTY 25.10.26","6","PCCNIA 925","","","weight"],["Ocado Garlic and Herb","OCIADO","GARLIC 15/10/26","3","PLCM4926 4101546468",": PLCCHOTT","AS -","bay"],["Ocado Garlic and Herb","OCADO","GARLIC 121026","4","PLCMA926 410",": PLCCPOST","AS-221165-101 11146740","36g"],["Ocado Garlic and Herb","OCADO","GARLIC 19.10.16","","PLOMA 926",": PLOCPOST",": A","365"],["Ocado Garlic and Herb","OCADO","GARLIC HERB 22.10.26","6","PLOMA 926",": PLCCP","45 221165","36g"],["Ocado Garlic and Herb","","","4","PLC MA926","","A5221165-101 W30483","36g"],["Ocado Garlic and Herb","OCADO","GARLIC&ASRB 25/10/26","","PLOMA ILE","PLCCPOST 718071","","weight"],["Ocado PSO","OCADO","PSO : 12/10/26","3","PICMA927 4101508738","","A5221165-101 W304837","36"],["Ocado PSO","OCIADO","PSO 15/16/26","6","NV Yes","","P AS",":"],["Ocado PSO","OCADO","P.S.O : 17.10.26","4","PICMASZE 4101508758",": Peach","","36g"]];
+
+// ---- AUTO UPLOAD ----
+// One drop for all of today's scans. Each file is identified from page 1's printed title
+// (that quick read is never saved). Line Assembly files go into Route & Merge with every page
+// OCR'd and pre-sorted (green / amber / red). Mixing files go into the Mixing tab: turned,
+// baked, OCR'd and named by the date written on the sheets. You check, then press ⚡ Operate.
+
+const AUTO = { files: [], running: false };
+let laLearned = null;
+const LA_LEARNED_KEY = 'laLearnedExamples';
+
+async function laRebuildLearned() {
+  let extra = [];
+  try { const s = await dbGet('settings', LA_LEARNED_KEY); if (s && Array.isArray(s.value)) extra = s.value; } catch (_) {}
+  const names = state.products.map(p => p.name);
+  laLearned = laBuildLearned(LA_EXAMPLES.concat(extra), names);
+}
+async function laRememberExamples(rows) {
+  if (!rows.length) return;
+  let extra = [];
+  try { const s = await dbGet('settings', LA_LEARNED_KEY); if (s && Array.isArray(s.value)) extra = s.value; } catch (_) {}
+  extra = extra.concat(rows).slice(-5000);
+  try { await dbPut('settings', { key: LA_LEARNED_KEY, value: extra }); } catch (e) { console.warn('[Learn]', e); }
+  await laRebuildLearned();
+}
+
+function autoScanKey(file) {
+  const m = file.name.match(/(\d{2})-(\d{2})-(\d{4})[_ ](\d{2})(\d{2})(\d{2})?/);
+  if (m) return `${m[3]}${m[2]}${m[1]}${m[4]}${m[5]}${m[6] || '00'}`;
+  return String(file.lastModified || 0).padStart(14, '0');
+}
+
+async function autoPool(items, n, fn) {
+  let i = 0;
+  await Promise.all(Array.from({ length: Math.min(n, items.length) }, async () => {
+    while (i < items.length) { const k = i++; await fn(items[k], k); }
+  }));
+}
+
+function autoProgress(text, pct) {
+  const el = document.getElementById('auto-progress');
+  el.style.display = 'block';
+  document.getElementById('auto-progress-text').textContent = text;
+  document.getElementById('auto-progress-pct').textContent = Math.round(pct) + '%';
+  document.getElementById('auto-progress-bar').style.width = pct + '%';
+  updateGlobalProgress(Math.round(pct), 100, text);
+}
+
+// Read page 1's printed title to tell Line Assembly from Mixing (tries pages 2–3 if page 1 is unclear)
+async function autoClassify(entry, dpi) {
+  entry.pdfDoc = await pdfjsLib.getDocument({ data: entry.bytes.slice() }).promise;
+  entry.pageCount = entry.pdfDoc.numPages;
+  for (let p = 1; p <= Math.min(3, entry.pageCount); p++) {
+    const r = await renderPageCanvas(entry.pdfDoc, p, dpi);
+    const res = await ocrPageWithGoogleVision(r.base64, state.googleApiKey);
+    res.canvasWidth = r.canvas.width; res.canvasHeight = r.canvas.height;
+    r.canvas.width = r.canvas.height = 0;
+    const t = String(res.text || '').toUpperCase().replace(/\s+/g, ' ');
+    if (/LINE\s*ASSEMBLY\s*SHEET|BRINE\s*BATCH\s*UNIQUE/.test(t)) { entry.type = 'la'; entry.firstOcr = { page: p - 1, res }; return; }
+    if (/MIXING\s*BATCH\s*RECORD|MIXED\s*BY/.test(t)) { entry.type = 'mixing'; return; }
+  }
+  entry.type = 'unknown';
+}
+
+async function autoAddFiles(fileList) {
+  const files = Array.from(fileList).filter(f => f.type === 'application/pdf' || /\.pdf$/i.test(f.name));
+  if (!files.length) return;
+  for (const f of files) AUTO.files.push({ file: f, name: f.name, key: autoScanKey(f), type: 'waiting', status: 'Waiting…' });
+  AUTO.files.sort((a, b) => a.key.localeCompare(b.key)); // older scans first
+  renderAutoFiles();
+  await autoRun();
+}
+
+async function autoRun() {
+  if (AUTO.running) return;
+  if (!state.googleApiKey) { toast('Vision Key required — click the logo to add it', 'error'); return; }
+  const todo = AUTO.files.filter(e => e.type === 'waiting' || e.forced);
+  if (!todo.length) return;
+  AUTO.running = true;
+  window._operateStep = 'Auto Upload';
+  const dpi = parseInt(document.getElementById('ocr-dpi').value) || 300;
+  try {
+    if (!laLearned) await laRebuildLearned();
+    // 1. Identify each file
+    for (let i = 0; i < todo.length; i++) {
+      const e = todo[i];
+      if (e.forced) { e.type = e.forced; delete e.forced; if (!e.bytes) e.bytes = await readFileAsBytes(e.file); continue; }
+      e.status = 'Identifying…'; renderAutoFiles();
+      autoProgress(`Identifying ${e.name}`, (i / todo.length) * 10);
+      try { e.bytes = await readFileAsBytes(e.file); await autoClassify(e, dpi); }
+      catch (err) { console.error('[Auto classify]', err); e.type = 'unknown'; e.error = err.message; }
+      e.status = e.type === 'unknown' ? 'Couldn’t tell — pick the type' : 'Identified';
+      renderAutoFiles();
+    }
+    const laFiles = todo.filter(e => e.type === 'la');
+    const mixFiles = todo.filter(e => e.type === 'mixing');
+    if (laFiles.length) await autoProcessLA(laFiles, dpi);
+    if (mixFiles.length) await autoProcessMixing(mixFiles);
+    toast('Auto Upload done — check the pages, then press ⚡ Operate', 'success');
+  } catch (err) {
+    console.error('[Auto Upload]', err);
+    toast('Auto Upload stopped: ' + err.message, 'error');
+  } finally {
+    AUTO.running = false;
+    window._operateStep = null;
+    hideGlobalProgress();
+    document.getElementById('auto-progress').style.display = 'none';
+    renderAutoFiles();
+    renderAutoSummary();
+  }
+}
+
+// Line Assembly: join the files into one "Today's scan", show it in Route & Merge, OCR every page and pre-sort it
+async function autoProcessLA(laFiles, dpi) {
+  if (state.scan && state.scan.pages.some(p => p.assignedProductId)) {
+    if (!confirm('Route & Merge already has a sorted scan that hasn’t been merged.\n\nReplace it with the new Line Assembly upload?')) {
+      laFiles.forEach(e => e.status = 'Skipped — existing scan kept'); return;
+    }
+  }
+  let bytes;
+  if (laFiles.length === 1) bytes = laFiles[0].bytes;
+  else {
+    const out = await PDFLib.PDFDocument.create();
+    for (const e of laFiles) {
+      const src = await PDFLib.PDFDocument.load(e.bytes.slice());
+      (await out.copyPages(src, src.getPageIndices())).forEach(p => out.addPage(p));
+    }
+    bytes = new Uint8Array(await out.save());
+  }
+  const name = laFiles.length === 1 ? laFiles[0].name : `${laFiles.length} Line Assembly scans`;
+  const pdfDoc = await pdfjsLib.getDocument({ data: bytes.slice() }).promise;
+  state.scan = { filename: name, pdfBytes: bytes, pdfDoc, pages: [], auto: {} };
+  document.getElementById('scan-info').textContent = `${name} · ${pdfDoc.numPages} pages · auto-sorted`;
+  dropzone.style.display = 'none';
+
+  // Reuse page 1's identification read when it was the first page of the first file
+  const first = laFiles[0];
+  const reuse = first.firstOcr && first.firstOcr.page === 0 ? first.firstOcr.res : null;
+  laFiles.forEach(e => { e.status = 'Reading pages…'; delete e.firstOcr; });
+  renderAutoFiles();
+
+  const thumbsDone = renderThumbs();
+  const idxs = Array.from({ length: pdfDoc.numPages }, (_, i) => i);
+  let done = 0;
+  const names = state.products.map(p => p.name);
+  await autoPool(idxs, 4, async (idx) => {
+    let res = null;
+    try {
+      if (idx === 0 && reuse) res = reuse;
+      else {
+        const r = await renderPageCanvas(pdfDoc, idx + 1, dpi);
+        res = await ocrPageWithGoogleVision(r.base64, state.googleApiKey);
+        res.canvasWidth = r.canvas.width; res.canvasHeight = r.canvas.height;
+        r.canvas.width = r.canvas.height = 0;
+      }
+      const fields = laExtractFields(res);
+      const match = laMatch(fields, names, laLearned);
+      state.scan.auto[idx] = { ocr: res, fields, match };
+    } catch (err) {
+      console.error('[Auto OCR] page', idx + 1, err);
+      if (String(err.message).startsWith('VISION_QUOTA')) throw err;
+      state.scan.auto[idx] = { error: err.message, match: { level: 'red', pick: null, reasons: ['OCR failed: ' + err.message], note: '' } };
+    }
+    applyAutoToThumb(idx);
+    done++;
+    autoProgress(`Line Assembly: read ${done} of ${idxs.length} pages`, 10 + (done / idxs.length) * 50);
+  });
+  await thumbsDone;
+  idxs.forEach(applyAutoToThumb);
+  updateMergeButton();
+  laFiles.forEach(e => e.status = `${e.pageCount} page${e.pageCount !== 1 ? 's' : ''} → Route & Merge`);
+}
+
+// Put the suggestion on the page's selector (only if you haven't picked one yourself)
+function applyAutoToThumb(idx) {
+  if (!state.scan || !state.scan.auto) return;
+  const a = state.scan.auto[idx];
+  const pg = state.scan.pages[idx];
+  const thumb = document.querySelector(`#thumbs .thumb[data-page-idx="${idx}"]`);
+  if (!a || !pg || !thumb) return;
+  const sel = thumb.querySelector('select');
+  if (!pg.userSet && a.match && a.match.pick) {
+    const prod = state.products.find(p => p.name === a.match.pick);
+    if (prod && sel) {
+      sel.value = prod.id;
+      pg.assignedProductId = prod.id;
+      thumb.classList.add('assigned');
+      syncAssignBtn(sel);
+    }
+  }
+  let badge = thumb.querySelector('.auto-badge');
+  if (!badge) {
+    badge = document.createElement('div');
+    badge.className = 'auto-badge';
+    thumb.appendChild(badge);
+  }
+  const lvl = pg.userSet ? 'user' : (a.match ? a.match.level : 'red');
+  const label = { green: '✓ Sure', amber: '◐ Check this', red: '! Unsure — check', user: '✎ You picked' }[lvl];
+  const why = (a.match && a.match.reasons || []).join(' · ');
+  const note = a.match && a.match.note ? a.match.note : '';
+  badge.className = 'auto-badge ' + lvl;
+  badge.innerHTML = `<span class="auto-lvl">${label}</span><span class="auto-why">${escapeHtml(note ? note + ' — ' + why : why)}</span>`;
+  badge.title = (note ? note + '\n' : '') + why;
+  thumb.classList.remove('auto-green', 'auto-amber', 'auto-red', 'auto-user');
+  thumb.classList.add('auto-' + lvl);
+}
+
+// Mixing: each file → its own entry, turned, baked and OCR'd, then named by the date on its sheets
+async function autoProcessMixing(mixFiles) {
+  const before = mixingQueue.length;
+  mixFiles.forEach(e => e.status = 'Rotating, baking and reading…');
+  renderAutoFiles();
+  await addMixingFiles(mixFiles.map(e => e.file));
+  const added = mixingQueue.slice(before);
+  added.forEach((entry, i) => { entry.autoFrom = mixFiles[i]; });
+  await runMixingOcr({ engine: 'vision_only' });
+  for (const entry of added) {
+    detectMixingDate(entry);
+    const e = entry.autoFrom;
+    if (e) e.status = entry.saveName ? `${entry.pages.length} pages → ${entry.saveName}.pdf` : `${entry.pages.length} pages — date not read, type it in the Mixing tab`;
+  }
+  renderMixingFileList();
+}
+
+// Majority vote of the dates read on a Mixing file's pages
+function detectMixingDate(entry) {
+  const votes = {};
+  for (const pg of entry.pages) {
+    pg.dateRead = pg.ocrResult ? mixDateFromOcr(pg.ocrResult) : '';
+    if (pg.dateRead) votes[pg.dateRead] = (votes[pg.dateRead] || 0) + 1;
+  }
+  const ranked = Object.entries(votes).sort((a, b) => b[1] - a[1]);
+  entry.dateVotes = ranked;
+  if (!entry.saveNameEdited) entry.saveName = ranked.length ? ranked[0][0] : '';
+  entry.dateOdd = ranked.length ? entry.pages.filter(p => p.dateRead && p.dateRead !== ranked[0][0]).length : 0;
+}
+
+function renderAutoFiles() {
+  const el = document.getElementById('auto-files');
+  if (!AUTO.files.length) { el.innerHTML = ''; return; }
+  el.innerHTML = AUTO.files.map((e, i) => {
+    const type = { la: 'Line Assembly', mixing: 'Mixing Batch Records', unknown: 'Unknown', waiting: '…' }[e.type] || e.type;
+    const pick = e.type === 'unknown' && !AUTO.running
+      ? `<button class="btn small" data-auto-type="la" data-i="${i}">It's Line Assembly</button> <button class="btn small" data-auto-type="mixing" data-i="${i}">It's Mixing</button>` : '';
+    return `<div class="auto-file"><span class="auto-fname">${escapeHtml(e.name)}</span>
+      <span class="auto-type t-${e.type}">${type}</span>
+      <span class="auto-fstatus">${escapeHtml(e.status || '')}${e.error ? ' — ' + escapeHtml(e.error) : ''}</span>${pick}</div>`;
+  }).join('');
+}
+document.getElementById('auto-files').addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-auto-type]'); if (!b) return;
+  const e = AUTO.files[+b.dataset.i]; if (!e) return;
+  e.forced = b.dataset.autoType; e.status = 'Queued'; e.error = '';
+  autoRun();
+});
+
+function renderAutoSummary() {
+  const el = document.getElementById('auto-summary');
+  let html = '';
+  if (state.scan && state.scan.auto && Object.keys(state.scan.auto).length) {
+    const items = Object.entries(state.scan.auto).map(([i, a]) => ({ i: +i, a, pg: state.scan.pages[+i] }));
+    const lvl = it => it.pg && it.pg.userSet ? 'user' : (it.a.match ? it.a.match.level : 'red');
+    const count = k => items.filter(it => lvl(it) === k).length;
+    const flagged = items.filter(it => ['amber', 'red'].includes(lvl(it))).sort((a, b) => (lvl(a) === 'red' ? -1 : 0) - (lvl(b) === 'red' ? -1 : 0) || a.i - b.i);
+    html += `<div class="auto-block"><h3>Line Assembly — ${items.length} pages</h3>
+      <div class="auto-counts"><span class="c-green">${count('green')} sure</span><span class="c-amber">${count('amber')} check</span><span class="c-red">${count('red')} unsure</span>${count('user') ? `<span class="c-user">${count('user')} picked by you</span>` : ''}</div>
+      ${flagged.length ? `<div class="auto-flags">${flagged.map(it => {
+        const pick = it.a.match && it.a.match.pick ? it.a.match.pick : 'nothing picked';
+        return `<button class="auto-flag f-${lvl(it)}" data-goto="${it.i}">Page ${it.i + 1} · ${escapeHtml(pick)}${it.a.match && it.a.match.note ? ' · ' + escapeHtml(it.a.match.note) : ''}</button>`;
+      }).join('')}</div>` : '<p class="auto-ok">Nothing flagged — still give the pages a glance in Route &amp; Merge.</p>'}
+      <button class="btn small primary" data-tabgo="route">Check Line Assembly →</button></div>`;
+  }
+  const mixed = mixingQueue.filter(e => e.autoFrom);
+  if (mixed.length) {
+    html += `<div class="auto-block"><h3>Mixing Batch Records — ${mixed.length} file${mixed.length !== 1 ? 's' : ''}</h3>` +
+      mixed.map(e => {
+        const ok = !!e.saveName;
+        const odd = e.dateOdd ? ` · ${e.dateOdd} page${e.dateOdd !== 1 ? 's show' : ' shows'} another date` : '';
+        return `<div class="auto-mix ${ok && !e.dateOdd ? 'ok' : 'warn'}">${ok ? `<strong>${escapeHtml(e.saveName)}.pdf</strong>` : '<strong>Date not read — type it in the Mixing tab</strong>'} · ${e.pages.length} pages${odd}</div>`;
+      }).join('') + `<button class="btn small primary" data-tabgo="mixing">Check Mixing →</button></div>`;
+  }
+  if (html) html += `<div class="auto-block"><p>When you've checked both, press <strong>⚡ Operate</strong> (Route &amp; Merge tab, or here).</p><button class="btn small" id="auto-operate" style="background:#7c3aed;color:#fff;border-color:#7c3aed;">⚡ Operate</button></div>`;
+  el.innerHTML = html;
+}
+document.getElementById('auto-summary').addEventListener('click', (ev) => {
+  const g = ev.target.closest('[data-goto]');
+  if (g) { autoGotoPage(+g.dataset.goto); return; }
+  const t = ev.target.closest('[data-tabgo]');
+  if (t) { document.querySelector(`.tab-btn[data-tab="${t.dataset.tabgo}"]`).click(); return; }
+  if (ev.target.id === 'auto-operate') runOperate();
+});
+function autoGotoPage(idx) {
+  document.querySelector('.tab-btn[data-tab="route"]').click();
+  const el = document.querySelector(`#thumbs .thumb[data-page-idx="${idx}"]`);
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  el.classList.add('flash');
+  setTimeout(() => el.classList.remove('flash'), 1600);
+}
+
+const autoDrop = document.getElementById('auto-dropzone');
+const autoInput = document.getElementById('auto-input');
+autoDrop.addEventListener('click', () => autoInput.click());
+autoDrop.addEventListener('dragover', (e) => { e.preventDefault(); autoDrop.classList.add('dragover'); });
+autoDrop.addEventListener('dragleave', () => autoDrop.classList.remove('dragover'));
+autoDrop.addEventListener('drop', (e) => { e.preventDefault(); autoDrop.classList.remove('dragover'); autoAddFiles(e.dataTransfer.files); });
+autoInput.addEventListener('change', (e) => { autoAddFiles(e.target.files); e.target.value = ''; });
+document.getElementById('auto-clear').addEventListener('click', () => {
+  if (AUTO.running) { toast('Still working — wait for it to finish', 'error'); return; }
+  AUTO.files = [];
+  renderAutoFiles();
+  document.getElementById('auto-summary').innerHTML = '';
+});
+
 // ---- SEARCH ----
 document.getElementById('search-input').addEventListener('input', doSearch);
 function doSearch() {
@@ -2691,6 +3499,7 @@ async function init() {
   refreshSearchMeta();
   restoreOperateStatus();
   mixingRefreshButtons();
+  laRebuildLearned().catch(e => console.warn('[Learn]', e));
   await restoreFolderHandle();
   if (state.googleApiKey || state.geminiApiKey) setTimeout(refreshApiBadges, 800);
   toast('Ready — ' + state.products.length + ' products loaded');
