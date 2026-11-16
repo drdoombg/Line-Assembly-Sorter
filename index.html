@@ -61,7 +61,7 @@
   .thumb { background: #fff; border: 2px solid #d6d3d1; border-radius: 4px; padding: 8px; position: relative; }
   .thumb.assigned { border-color: #0f766e; box-shadow: 0 0 0 1px #0f766e; }
   .thumb .canvas-wrap { display: flex; justify-content: center; align-items: center; background: #f5f5f4; border: 1px solid #e7e5e4; overflow: hidden; position: relative; cursor: zoom-in; }
-  .thumb canvas { width: 100%; height: auto; transition: transform 0.3s ease; }
+  .thumb canvas { width: auto; height: auto; max-width: 100%; max-height: calc(100vh - 330px); transition: transform 0.3s ease; }
   .thumb .rotate-btn { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.8); color: #fff; border: 1px solid #444; border-radius: 4px; padding: 6px 10px; cursor: pointer; font-size: 13px; font-weight: 600; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.3); transition: background 0.2s; }
   .thumb .rotate-btn:hover { background: #000; }
   .thumb .page-num { font-size: 11px; color: #78716c; margin-top: 6px; text-align: center; font-weight: 500; }
@@ -133,6 +133,7 @@
   .auto-mix.ok { background: #f0fdf4; color: #14532d; } .auto-mix.warn { background: #fffbeb; color: #78350f; }
   .auto-badge { margin-top: 6px; font-size: 11.5px; line-height: 1.35; padding: 5px 8px; border-radius: 4px; display: flex; flex-direction: column; gap: 2px; }
   .auto-badge .auto-lvl { font-weight: 700; }
+  .auto-badge .auto-read { color: #1c1917; font-weight: 600; }
   .auto-badge .auto-why { color: #44403c; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   .auto-badge.green { background: #dcfce7; color: #14532d; } .auto-badge.amber { background: #fef3c7; color: #78350f; }
   .auto-badge.red { background: #fee2e2; color: #7f1d1d; } .auto-badge.user { background: #e0e7ff; color: #312e81; }
@@ -261,7 +262,7 @@
     </svg>
   </div>
   <h1 id="app-title" title="Toggle API Keys">LineAssemblyHub</h1>
-  <span class="tag">v46</span>
+  <span class="tag">v47</span>
   <div class="status" id="storage-status" title="Browser local storage allocation">–</div>
   <span id="vision-badge" title="Google Vision API status" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Vision –</span>
   <span id="correction-badge" title="Correction API status (live-confirmed after first successful call)" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Correction –</span>
@@ -302,7 +303,7 @@
   <section class="tab-content active" id="tab-auto">
     <div class="panel-header">
       <h2>Auto Upload</h2>
-      <div class="actions"><button class="btn small" id="auto-clear">Clear list</button></div>
+      <div class="actions"><button class="btn small" id="auto-feedback" title="What the sorter picked vs what you kept — upload this file to Claude to improve the rules">⬇ Export sorting feedback</button> <button class="btn small" id="auto-clear">Clear list</button></div>
     </div>
     <div id="auto-body">
       <div id="auto-dropzone">
@@ -1455,6 +1456,7 @@ async function doMerge() {
   let mergedPages = 0;
   let droppedBlankPages = 0;
   const learnRows = [];
+  const feedbackRows = [];
   const productIds = Object.keys(byProduct);
   let mergeCount = 0;
 
@@ -1497,6 +1499,7 @@ async function doMerge() {
         const au = state.scan.auto && state.scan.auto[pgObj.index];
         if (au && au.ocr && !pgObj.rotation) reuseOcr[newProductDoc.getPageCount() - 1] = au.ocr;
         if (au && au.fields) learnRows.push([product.name, au.fields.customer, au.fields.product, au.fields.line, au.fields.film, au.fields.sleeve, au.fields.tray, au.fields.tare]);
+        if (au && au.match) feedbackRows.push(laFeedbackRow(au, product.name, pgObj.index));
       } else {
         droppedBlankPages++;
       }
@@ -1529,6 +1532,7 @@ async function doMerge() {
   updateProductsList();
   updateStorageStatus();
   laRememberExamples(learnRows); // the sorter learns from what you confirmed
+  laRememberFeedback(feedbackRows);
   return { pages: mergedPages, products: productIds.length, blanks: droppedBlankPages };
 }
 document.getElementById('merge-btn').addEventListener('click', () => doMerge());
@@ -2365,7 +2369,7 @@ function mixingSetProgress(text, pct) {
   document.getElementById('mixing-progress-text').textContent = text;
   document.getElementById('mixing-progress-pct').textContent = Math.round(pct) + '%';
   document.getElementById('mixing-progress-bar').style.width = pct + '%';
-  if (window._operateStep) {
+  if (window._operateStep && !AUTO.running) {
     const p = document.getElementById('global-progress');
     p.style.display = 'block';
     document.getElementById('global-progress-text').textContent = `⚡ ${window._operateStep} — ${text} (${Math.round(pct)}%)`;
@@ -2382,7 +2386,7 @@ function mixingRefreshButtons() {
 }
 
 // OCR every page that has no result yet (or all pages when force=true)
-async function runMixingOcr({ engine, force = false } = {}) {
+async function runMixingOcr({ engine, force = false, onPage = null } = {}) {
   engine = engine || document.getElementById('mixing-engine-select').value;
   if (!state.googleApiKey) throw new Error('Vision Key required — click the logo to add it');
   if (engine === 'vision_correction' && !state.geminiApiKey) throw new Error('Correction Key required — or switch to Vision Only');
@@ -2395,9 +2399,11 @@ async function runMixingOcr({ engine, force = false } = {}) {
   if (!todo.length) { mixingSetProgress('All pages already OCR’d ✓', 100); return 0; }
 
   let done = 0;
-  for (const { entry, pg } of todo) {
+  if (onPage) onPage(0, todo.length);
+  mixingSetProgress(`OCR 0/${todo.length}`, 0);
+  await autoPool(todo, 3, async ({ entry, pg }) => {
     const label = `${entry.filename} p.${entry.pages.indexOf(pg) + 1}`;
-    mixingSetProgress(`OCR ${done + 1}/${todo.length}: ${label}`, (done / todo.length) * 100);
+    const t0 = performance.now();
 
     const page = await entry.pdfDoc.getPage(pg.index + 1);
     const vp1 = page.getViewport({ scale: 1, rotation: pg.rotation });
@@ -2411,6 +2417,7 @@ async function runMixingOcr({ engine, force = false } = {}) {
     ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cvs.width, cvs.height);
     await page.render({ intent: 'print', canvasContext: ctx, viewport: vp }).promise;
     const base64 = cvs.toDataURL('image/jpeg', 0.85).split(',')[1];
+    const t1 = performance.now();
 
     let res;
     try { res = await ocrPageWithGoogleVision(base64, state.googleApiKey); }
@@ -2437,8 +2444,11 @@ async function runMixingOcr({ engine, force = false } = {}) {
     cvs.width = cvs.height = 0; // free memory
     done++;
     if (pg._statusEl) pg._statusEl.textContent = '✓';
+    autoTime('mix', t1 - t0, performance.now() - t1);
+    console.log(`[Mixing] ${label}: render ${Math.round(t1 - t0)} ms, Vision ${Math.round(performance.now() - t1)} ms`);
     mixingSetProgress(`OCR ${done}/${todo.length}: ${label} ✓`, (done / todo.length) * 100);
-  }
+    if (onPage) onPage(done, todo.length);
+  });
   mixingQueue.forEach(e => { e.ocrDone = e.pages.every(p => p.ocrResult); if (e.ocrDone && !e.saveNameEdited) detectMixingDate(e); });
   renderMixingFileList();
   mixingRefreshButtons();
@@ -3132,7 +3142,21 @@ const LA_EXAMPLES = [["ASDA PSO","ASAA","PSO 11/ OCT/ 26","6","PLCASEST 14101536
 // OCR'd and pre-sorted (green / amber / red). Mixing files go into the Mixing tab: turned,
 // baked, OCR'd and named by the date written on the sheets. You check, then press ⚡ Operate.
 
-const AUTO = { files: [], running: false };
+const AUTO = { files: [], running: false, la: null, mix: null, times: { la: [0, 0, 0], mix: [0, 0, 0] } };
+// Running totals of render / Vision time per page, shown in the progress line and the console
+function autoTime(kind, renderMs, visionMs) {
+  const t = AUTO.times[kind]; t[0] += renderMs; t[1] += visionMs; t[2]++;
+}
+function autoTimeText(kind) {
+  const t = AUTO.times[kind]; if (!t[2]) return '';
+  return ` (${(t[0] / t[2] / 1000).toFixed(1)}s draw + ${(t[1] / t[2] / 1000).toFixed(1)}s Vision per page)`;
+}
+function autoShowProgress() {
+  const parts = []; let d = 0, n = 0;
+  if (AUTO.la) { parts.push(`Line Assembly ${AUTO.la.done}/${AUTO.la.total}${autoTimeText('la')}`); d += AUTO.la.done; n += AUTO.la.total; }
+  if (AUTO.mix) { parts.push(`Mixing ${AUTO.mix.done}/${AUTO.mix.total}${autoTimeText('mix')}`); d += AUTO.mix.done; n += AUTO.mix.total; }
+  if (parts.length) autoProgress(parts.join(' · '), 10 + (n ? d / n : 0) * 90);
+}
 let laLearned = null;
 const LA_LEARNED_KEY = 'laLearnedExamples';
 
@@ -3149,6 +3173,80 @@ async function laRememberExamples(rows) {
   extra = extra.concat(rows).slice(-5000);
   try { await dbPut('settings', { key: LA_LEARNED_KEY, value: extra }); } catch (e) { console.warn('[Learn]', e); }
   await laRebuildLearned();
+}
+
+// ---- TAB ALERT: the browser tab flashes when sorting is done and needs you ----
+let _tabAlertTimer = null;
+function tabAlert(msg) {
+  tabAlertStop();
+  const title = document.title;
+  const link = document.querySelector('link[rel="icon"]');
+  const icon = link ? link.href : '';
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const x = c.getContext('2d'); x.fillStyle = '#16a34a'; x.beginPath(); x.arc(32, 32, 30, 0, 7); x.fill();
+  x.fillStyle = '#fff'; x.font = 'bold 44px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('✓', 32, 35);
+  const dot = c.toDataURL('image/png');
+  let on = false;
+  _tabAlertTimer = setInterval(() => {
+    on = !on;
+    document.title = on ? msg : title;
+    if (link) link.href = on ? dot : icon;
+  }, 900);
+  const stop = () => {
+    if (_tabAlertStop !== stop) return; // an older alert's listener
+    clearInterval(_tabAlertTimer); _tabAlertTimer = null; _tabAlertStop = null;
+    document.title = title; if (link) link.href = icon;
+  };
+  _tabAlertStop = stop;
+  // Stops when you come back to the tab and touch the page
+  ['pointerdown', 'keydown'].forEach(ev => window.addEventListener(ev, stop, { once: true }));
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(() => { if (document.hasFocus()) stop(); }, 4000); }, { once: true });
+}
+let _tabAlertStop = null;
+function tabAlertStop() { if (_tabAlertStop) _tabAlertStop(); }
+
+// ---- SORTING FEEDBACK (export to improve the rules) ----
+// One row per merged page: what was read, what the sorter picked, and what you kept.
+// No names: the scan file name (it has the scanner login) is reduced to its date.
+const LA_FEEDBACK_KEY = 'laFeedback';
+function laFeedbackRow(au, finalName, pageIdx) {
+  return {
+    t: new Date().toISOString(),
+    scanDate: (state.scan && state.scan.pageDates && state.scan.pageDates[pageIdx]) || '',
+    page: pageIdx + 1,
+    read: au.fields || {},
+    auto: { pick: au.match.pick || null, level: au.match.level, score: au.match.score, runnerUp: au.match.runnerUp || null, reasons: au.match.reasons || [] },
+    final: finalName,
+    changed: (au.match.pick || null) !== finalName,
+  };
+}
+async function laRememberFeedback(rows) {
+  if (!rows.length) return;
+  try {
+    const old = (await dbGet('settings', LA_FEEDBACK_KEY))?.value || [];
+    await dbPut('settings', { key: LA_FEEDBACK_KEY, value: old.concat(rows).slice(-20000) });
+  } catch (e) { console.warn('[Feedback]', e); }
+  laFeedbackButton();
+}
+async function laFeedbackButton() {
+  const b = document.getElementById('auto-feedback'); if (!b) return;
+  let n = 0;
+  try { n = ((await dbGet('settings', LA_FEEDBACK_KEY))?.value || []).length; } catch (_) {}
+  b.textContent = `⬇ Export sorting feedback (${n})`;
+  b.disabled = !n;
+}
+async function laExportFeedback() {
+  const rows = (await dbGet('settings', LA_FEEDBACK_KEY))?.value || [];
+  if (!rows.length) { toast('No feedback yet — it builds up each time you merge auto-sorted pages', 'error'); return; }
+  const out = { app: 'LineAssemblyHub', version: 'v47', exported: new Date().toISOString(), pages: rows.length,
+    changed: rows.filter(r => r.changed).length, rows };
+  const blob = new Blob([JSON.stringify(out, null, 1)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `sorting-feedback-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  toast(`Exported ${rows.length} pages (${out.changed} you changed)`, 'success');
 }
 
 function autoScanKey(file) {
@@ -3208,27 +3306,39 @@ async function autoRun() {
   const dpi = parseInt(document.getElementById('ocr-dpi').value) || 300;
   try {
     if (!laLearned) await laRebuildLearned();
-    // 1. Identify each file
-    for (let i = 0; i < todo.length; i++) {
-      const e = todo[i];
-      if (e.forced) { e.type = e.forced; delete e.forced; if (!e.bytes) e.bytes = await readFileAsBytes(e.file); continue; }
-      e.status = 'Identifying…'; renderAutoFiles();
-      autoProgress(`Identifying ${e.name}`, (i / todo.length) * 10);
-      try { e.bytes = await readFileAsBytes(e.file); await autoClassify(e, dpi); }
-      catch (err) { console.error('[Auto classify]', err); e.type = 'unknown'; e.error = err.message; }
-      e.status = e.type === 'unknown' ? 'Couldn’t tell — pick the type' : 'Identified';
+    // 1. Identify each file (4 at a time)
+    let ided = 0;
+    autoProgress(`Identifying ${todo.length} file${todo.length !== 1 ? 's' : ''}…`, 0);
+    await autoPool(todo, 4, async (e) => {
+      if (e.forced) { e.type = e.forced; delete e.forced; if (!e.bytes) e.bytes = await readFileAsBytes(e.file); }
+      else {
+        e.status = 'Identifying…'; renderAutoFiles();
+        try { e.bytes = await readFileAsBytes(e.file); await autoClassify(e, dpi); }
+        catch (err) { console.error('[Auto classify]', err); e.type = 'unknown'; e.error = err.message; }
+        e.status = e.type === 'unknown' ? 'Couldn’t tell — pick the type' : 'Identified';
+      }
+      ided++;
+      autoProgress(`Identified ${ided} of ${todo.length} files`, (ided / todo.length) * 10);
       renderAutoFiles();
-    }
+    });
     const laFiles = todo.filter(e => e.type === 'la');
     const mixFiles = todo.filter(e => e.type === 'mixing');
-    if (laFiles.length) await autoProcessLA(laFiles, dpi);
-    if (mixFiles.length) await autoProcessMixing(mixFiles);
+    // 2. Line Assembly and Mixing at the same time — Mixing doesn't wait for the end
+    AUTO.la = null; AUTO.mix = null; AUTO.times = { la: [0, 0, 0], mix: [0, 0, 0] };
+    await Promise.all([
+      laFiles.length ? autoProcessLA(laFiles, dpi) : null,
+      mixFiles.length ? autoProcessMixing(mixFiles) : null,
+    ]);
+    if (AUTO.times.la[2]) console.log('[Auto Upload] Line Assembly' + autoTimeText('la'));
+    if (AUTO.times.mix[2]) console.log('[Auto Upload] Mixing' + autoTimeText('mix'));
     toast('Auto Upload done — check the pages, then press ⚡ Operate', 'success');
+    tabAlert('✅ Ready to check');
   } catch (err) {
     console.error('[Auto Upload]', err);
     toast('Auto Upload stopped: ' + err.message, 'error');
   } finally {
     AUTO.running = false;
+    AUTO.la = AUTO.mix = null;
     window._operateStep = null;
     hideGlobalProgress();
     document.getElementById('auto-progress').style.display = 'none';
@@ -3256,7 +3366,9 @@ async function autoProcessLA(laFiles, dpi) {
   }
   const name = laFiles.length === 1 ? laFiles[0].name : `${laFiles.length} Line Assembly scans`;
   const pdfDoc = await pdfjsLib.getDocument({ data: bytes.slice() }).promise;
-  state.scan = { filename: name, pdfBytes: bytes, pdfDoc, pages: [], auto: {} };
+  const pageDates = [];
+  laFiles.forEach(e => { const m = e.name.match(/(\d{2})-(\d{2})-(\d{4})/); for (let k = 0; k < e.pageCount; k++) pageDates.push(m ? `${m[3]}-${m[2]}-${m[1]}` : ''); });
+  state.scan = { filename: name, pdfBytes: bytes, pdfDoc, pages: [], auto: {}, pageDates };
   document.getElementById('scan-info').textContent = `${name} · ${pdfDoc.numPages} pages · auto-sorted`;
   dropzone.style.display = 'none';
 
@@ -3270,13 +3382,20 @@ async function autoProcessLA(laFiles, dpi) {
   const idxs = Array.from({ length: pdfDoc.numPages }, (_, i) => i);
   let done = 0;
   const names = state.products.map(p => p.name);
-  await autoPool(idxs, 4, async (idx) => {
+  AUTO.la = { done: 0, total: idxs.length };
+  autoShowProgress();
+  await autoPool(idxs, 6, async (idx) => {
     let res = null;
     try {
       if (idx === 0 && reuse) res = reuse;
       else {
+        const t0 = performance.now();
         const r = await renderPageCanvas(pdfDoc, idx + 1, dpi);
+        const t1 = performance.now();
         res = await ocrPageWithGoogleVision(r.base64, state.googleApiKey);
+        const t2 = performance.now();
+        autoTime('la', t1 - t0, t2 - t1);
+        console.log(`[Auto LA] page ${idx + 1}: draw ${Math.round(t1 - t0)} ms, Vision ${Math.round(t2 - t1)} ms`);
         res.canvasWidth = r.canvas.width; res.canvasHeight = r.canvas.height;
         r.canvas.width = r.canvas.height = 0;
       }
@@ -3290,7 +3409,8 @@ async function autoProcessLA(laFiles, dpi) {
     }
     applyAutoToThumb(idx);
     done++;
-    autoProgress(`Line Assembly: read ${done} of ${idxs.length} pages`, 10 + (done / idxs.length) * 50);
+    AUTO.la.done = done;
+    autoShowProgress();
   });
   await thumbsDone;
   idxs.forEach(applyAutoToThumb);
@@ -3326,7 +3446,9 @@ function applyAutoToThumb(idx) {
   const why = (a.match && a.match.reasons || []).join(' · ');
   const note = a.match && a.match.note ? a.match.note : '';
   badge.className = 'auto-badge ' + lvl;
-  badge.innerHTML = `<span class="auto-lvl">${label}</span><span class="auto-why">${escapeHtml(note ? note + ' — ' + why : why)}</span>`;
+  const f = a.fields || {};
+  const read = [f.customer, f.product].filter(Boolean).join(' · ');
+  badge.innerHTML = `<span class="auto-lvl">${label}</span>${read ? `<span class="auto-read">Read: ${escapeHtml(read)}</span>` : ''}<span class="auto-why">${escapeHtml(note ? note + ' — ' + why : why)}</span>`;
   badge.title = (note ? note + '\n' : '') + why;
   thumb.classList.remove('auto-green', 'auto-amber', 'auto-red', 'auto-user');
   thumb.classList.add('auto-' + lvl);
@@ -3340,7 +3462,7 @@ async function autoProcessMixing(mixFiles) {
   await addMixingFiles(mixFiles.map(e => e.file));
   const added = mixingQueue.slice(before);
   added.forEach((entry, i) => { entry.autoFrom = mixFiles[i]; });
-  await runMixingOcr({ engine: 'vision_only' });
+  await runMixingOcr({ engine: 'vision_only', onPage: (d, n) => { AUTO.mix = { done: d, total: n }; autoShowProgress(); } });
   for (const entry of added) {
     detectMixingDate(entry);
     const e = entry.autoFrom;
@@ -3432,6 +3554,8 @@ autoDrop.addEventListener('dragover', (e) => { e.preventDefault(); autoDrop.clas
 autoDrop.addEventListener('dragleave', () => autoDrop.classList.remove('dragover'));
 autoDrop.addEventListener('drop', (e) => { e.preventDefault(); autoDrop.classList.remove('dragover'); autoAddFiles(e.dataTransfer.files); });
 autoInput.addEventListener('change', (e) => { autoAddFiles(e.target.files); e.target.value = ''; });
+document.getElementById('auto-feedback').addEventListener('click', laExportFeedback);
+setTimeout(laFeedbackButton, 1500);
 document.getElementById('auto-clear').addEventListener('click', () => {
   if (AUTO.running) { toast('Still working — wait for it to finish', 'error'); return; }
   AUTO.files = [];
