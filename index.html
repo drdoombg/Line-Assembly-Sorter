@@ -133,6 +133,9 @@
   .auto-mix.ok { background: #f0fdf4; color: #14532d; } .auto-mix.warn { background: #fffbeb; color: #78350f; }
   .auto-badge { margin-top: 6px; font-size: 11.5px; line-height: 1.35; padding: 5px 8px; border-radius: 4px; display: flex; flex-direction: column; gap: 2px; }
   .auto-badge .auto-lvl { font-weight: 700; }
+  /* Zoomed card: shows the sheet from the Name row down to Specification Tare Weight (13%–89% of an A4 page) */
+  .thumb .canvas-wrap.crop { display: block; aspect-ratio: 0.874; width: min(100%, calc((100vh - 300px) * 0.874)); margin: 0 auto; }
+  .thumb .canvas-wrap.crop canvas { width: 106.38%; max-width: none; max-height: none; margin-left: -3.19%; margin-top: -19.56%; display: block; }
   .auto-badge .auto-read { color: #1c1917; font-weight: 600; }
   .auto-badge .auto-why { color: #44403c; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   .auto-badge.green { background: #dcfce7; color: #14532d; } .auto-badge.amber { background: #fef3c7; color: #78350f; }
@@ -262,7 +265,7 @@
     </svg>
   </div>
   <h1 id="app-title" title="Toggle API Keys">LineAssemblyHub</h1>
-  <span class="tag">v47</span>
+  <span class="tag">v48</span>
   <div class="status" id="storage-status" title="Browser local storage allocation">–</div>
   <span id="vision-badge" title="Google Vision API status" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Vision –</span>
   <span id="correction-badge" title="Correction API status (live-confirmed after first successful call)" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Correction –</span>
@@ -760,7 +763,7 @@ async function loadScan(file) {
   }
 }
 
-async function renderThumbs() {
+async function renderThumbs(opts = {}) {
   const thumbsEl = document.getElementById('thumbs');
   thumbsEl.innerHTML = '';
   const pdfDoc = state.scan.pdfDoc;
@@ -773,14 +776,15 @@ async function renderThumbs() {
     canvas.width = viewport.width;
     canvas.height = viewport.height;
     const ctx = canvas.getContext('2d');
-    await page.render({ intent: 'print', canvasContext: ctx, viewport }).promise;
+    if (opts.blank) { ctx.fillStyle = '#f5f5f4'; ctx.fillRect(0, 0, canvas.width, canvas.height); } // filled in when the page is read
+    else await page.render({ intent: 'print', canvasContext: ctx, viewport }).promise;
 
     const div = document.createElement('div');
     div.className = 'thumb';
     div.dataset.pageIdx = i - 1;
     
     const canvasWrap = document.createElement('div');
-    canvasWrap.className = 'canvas-wrap';
+    canvasWrap.className = 'canvas-wrap' + (viewport.height > viewport.width ? ' crop' : '');
     canvasWrap.appendChild(canvas);
     
     const rotateBtn = document.createElement('button');
@@ -792,6 +796,7 @@ async function renderThumbs() {
       r = (r + 90) % 360;
       state.scan.pages[i-1].rotation = r;
       canvas.style.transform = `rotate(${r}deg)`;
+      canvasWrap.classList.toggle('crop', r === 0 && viewport.height > viewport.width); // turned pages show whole
     };
     canvasWrap.appendChild(rotateBtn);
     
@@ -2401,8 +2406,9 @@ async function runMixingOcr({ engine, force = false, onPage = null } = {}) {
   let done = 0;
   if (onPage) onPage(0, todo.length);
   mixingSetProgress(`OCR 0/${todo.length}`, 0);
-  await autoPool(todo, 3, async ({ entry, pg }) => {
+  await autoPool(todo, AUTO_PARALLEL, async ({ entry, pg }) => {
     const label = `${entry.filename} p.${entry.pages.indexOf(pg) + 1}`;
+    const rotAtStart = pg.rotation;
     const t0 = performance.now();
 
     const page = await entry.pdfDoc.getPage(pg.index + 1);
@@ -2437,6 +2443,7 @@ async function runMixingOcr({ engine, force = false, onPage = null } = {}) {
       } catch (e) { console.error('[Mixing correction]', e.message); recordCorrectionResult(false); }
     }
 
+    if (pg.rotation !== rotAtStart || !entry.pages.includes(pg)) { cvs.width = cvs.height = 0; done++; if (onPage) onPage(done, todo.length); return; } // turned or removed while being read → read again at Operate
     pg.ocrResult = res;
     pg.ocrBase64 = base64;
     pg.ptW = vp1.width;   // page size in PDF points, at display orientation
@@ -3142,6 +3149,7 @@ const LA_EXAMPLES = [["ASDA PSO","ASAA","PSO 11/ OCT/ 26","6","PLCASEST 14101536
 // OCR'd and pre-sorted (green / amber / red). Mixing files go into the Mixing tab: turned,
 // baked, OCR'd and named by the date written on the sheets. You check, then press ⚡ Operate.
 
+const AUTO_PARALLEL = 2; // pages sent to Vision at the same time
 const AUTO = { files: [], running: false, la: null, mix: null, times: { la: [0, 0, 0], mix: [0, 0, 0] } };
 // Running totals of render / Vision time per page, shown in the progress line and the console
 function autoTime(kind, renderMs, visionMs) {
@@ -3154,7 +3162,10 @@ function autoTimeText(kind) {
 function autoShowProgress() {
   const parts = []; let d = 0, n = 0;
   if (AUTO.la) { parts.push(`Line Assembly ${AUTO.la.done}/${AUTO.la.total}${autoTimeText('la')}`); d += AUTO.la.done; n += AUTO.la.total; }
-  if (AUTO.mix) { parts.push(`Mixing ${AUTO.mix.done}/${AUTO.mix.total}${autoTimeText('mix')}`); d += AUTO.mix.done; n += AUTO.mix.total; }
+  if (AUTO.mix) {
+    if (AUTO.mix.waiting) parts.push(`Mixing: ${AUTO.mix.total} pages loaded — check rotation now, reading starts after Line Assembly`);
+    else { parts.push(`Mixing ${AUTO.mix.done}/${AUTO.mix.total}${autoTimeText('mix')}`); d += AUTO.mix.done; n += AUTO.mix.total; }
+  }
   if (parts.length) autoProgress(parts.join(' · '), 10 + (n ? d / n : 0) * 90);
 }
 let laLearned = null;
@@ -3309,7 +3320,7 @@ async function autoRun() {
     // 1. Identify each file (4 at a time)
     let ided = 0;
     autoProgress(`Identifying ${todo.length} file${todo.length !== 1 ? 's' : ''}…`, 0);
-    await autoPool(todo, 4, async (e) => {
+    await autoPool(todo, AUTO_PARALLEL, async (e) => {
       if (e.forced) { e.type = e.forced; delete e.forced; if (!e.bytes) e.bytes = await readFileAsBytes(e.file); }
       else {
         e.status = 'Identifying…'; renderAutoFiles();
@@ -3323,12 +3334,13 @@ async function autoRun() {
     });
     const laFiles = todo.filter(e => e.type === 'la');
     const mixFiles = todo.filter(e => e.type === 'mixing');
-    // 2. Line Assembly and Mixing at the same time — Mixing doesn't wait for the end
     AUTO.la = null; AUTO.mix = null; AUTO.times = { la: [0, 0, 0], mix: [0, 0, 0] };
-    await Promise.all([
-      laFiles.length ? autoProcessLA(laFiles, dpi) : null,
-      mixFiles.length ? autoProcessMixing(mixFiles) : null,
-    ]);
+    // 2. Mixing goes into its tab straight away (not read yet) so you can check the rotation meanwhile
+    const mixEntries = mixFiles.length ? await autoLoadMixing(mixFiles) : [];
+    // 3. Read every Line Assembly page, then sort them all in one go
+    if (laFiles.length) await autoProcessLA(laFiles, dpi);
+    // 4. Then read Mixing and name each file by its date
+    if (mixEntries.length) await autoReadMixing(mixEntries);
     if (AUTO.times.la[2]) console.log('[Auto Upload] Line Assembly' + autoTimeText('la'));
     if (AUTO.times.mix[2]) console.log('[Auto Upload] Mixing' + autoTimeText('mix'));
     toast('Auto Upload done — check the pages, then press ⚡ Operate', 'success');
@@ -3378,19 +3390,20 @@ async function autoProcessLA(laFiles, dpi) {
   laFiles.forEach(e => { e.status = 'Reading pages…'; delete e.firstOcr; });
   renderAutoFiles();
 
-  const thumbsDone = renderThumbs();
+  await renderThumbs({ blank: true }); // cards appear at once; each picture is filled in from the page read for Vision
   const idxs = Array.from({ length: pdfDoc.numPages }, (_, i) => i);
   let done = 0;
   const names = state.products.map(p => p.name);
   AUTO.la = { done: 0, total: idxs.length };
   autoShowProgress();
-  await autoPool(idxs, 6, async (idx) => {
+  await autoPool(idxs, AUTO_PARALLEL, async (idx) => {
     let res = null;
     try {
-      if (idx === 0 && reuse) res = reuse;
+      if (idx === 0 && reuse) { res = reuse; autoThumbFromPdf(pdfDoc, idx); }
       else {
         const t0 = performance.now();
         const r = await renderPageCanvas(pdfDoc, idx + 1, dpi);
+        autoFillThumb(idx, r.canvas);
         const t1 = performance.now();
         res = await ocrPageWithGoogleVision(r.base64, state.googleApiKey);
         const t2 = performance.now();
@@ -3399,23 +3412,37 @@ async function autoProcessLA(laFiles, dpi) {
         res.canvasWidth = r.canvas.width; res.canvasHeight = r.canvas.height;
         r.canvas.width = r.canvas.height = 0;
       }
-      const fields = laExtractFields(res);
-      const match = laMatch(fields, names, laLearned);
-      state.scan.auto[idx] = { ocr: res, fields, match };
+      state.scan.auto[idx] = { ocr: res };
     } catch (err) {
       console.error('[Auto OCR] page', idx + 1, err);
       if (String(err.message).startsWith('VISION_QUOTA')) throw err;
       state.scan.auto[idx] = { error: err.message, match: { level: 'red', pick: null, reasons: ['OCR failed: ' + err.message], note: '' } };
     }
-    applyAutoToThumb(idx);
     done++;
     AUTO.la.done = done;
     autoShowProgress();
   });
-  await thumbsDone;
+  // All pages read → sort them all now (takes well under a second)
+  for (const idx of idxs) {
+    const a = state.scan.auto[idx];
+    if (a && a.ocr) { a.fields = laExtractFields(a.ocr); a.match = laMatch(a.fields, names, laLearned); }
+  }
   idxs.forEach(applyAutoToThumb);
+  renderAutoSummary();
   updateMergeButton();
   laFiles.forEach(e => e.status = `${e.pageCount} page${e.pageCount !== 1 ? 's' : ''} → Route & Merge`);
+}
+
+// Card picture: drawn from the 300 DPI page already made for Vision (no second render of the scan)
+function autoFillThumb(idx, src) {
+  const c = document.querySelector(`#thumbs .thumb[data-page-idx="${idx}"] canvas`);
+  if (c) c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
+}
+async function autoThumbFromPdf(pdfDoc, idx) {
+  const c = document.querySelector(`#thumbs .thumb[data-page-idx="${idx}"] canvas`);
+  if (!c) return;
+  const page = await pdfDoc.getPage(idx + 1);
+  await page.render({ intent: 'print', canvasContext: c.getContext('2d'), viewport: page.getViewport({ scale: THUMB_DPI / 72 }) }).promise;
 }
 
 // Put the suggestion on the page's selector (only if you haven't picked one yourself)
@@ -3455,14 +3482,20 @@ function applyAutoToThumb(idx) {
 }
 
 // Mixing: each file → its own entry, turned, baked and OCR'd, then named by the date on its sheets
-async function autoProcessMixing(mixFiles) {
+async function autoLoadMixing(mixFiles) {
   const before = mixingQueue.length;
-  mixFiles.forEach(e => e.status = 'Rotating, baking and reading…');
-  renderAutoFiles();
   await addMixingFiles(mixFiles.map(e => e.file));
   const added = mixingQueue.slice(before);
-  added.forEach((entry, i) => { entry.autoFrom = mixFiles[i]; });
+  added.forEach(entry => { const e = mixFiles.find(f => f.file === entry.file); if (e) { entry.autoFrom = e; e.status = 'Loaded in the Mixing tab — check rotation; read after Line Assembly'; } });
+  AUTO.mix = { done: 0, total: added.reduce((n, e) => n + e.pages.length, 0), waiting: true };
+  renderAutoFiles(); renderAutoSummary(); autoShowProgress();
+  return added;
+}
+async function autoReadMixing(added) {
+  added.forEach(entry => { if (entry.autoFrom) entry.autoFrom.status = 'Reading…'; });
+  renderAutoFiles();
   await runMixingOcr({ engine: 'vision_only', onPage: (d, n) => { AUTO.mix = { done: d, total: n }; autoShowProgress(); } });
+  added = added.filter(e => mixingQueue.includes(e));
   for (const entry of added) {
     detectMixingDate(entry);
     const e = entry.autoFrom;
@@ -3525,7 +3558,7 @@ function renderAutoSummary() {
       mixed.map(e => {
         const ok = !!e.saveName;
         const odd = e.dateOdd ? ` · ${e.dateOdd} page${e.dateOdd !== 1 ? 's show' : ' shows'} another date` : '';
-        return `<div class="auto-mix ${ok && !e.dateOdd ? 'ok' : 'warn'}">${ok ? `<strong>${escapeHtml(e.saveName)}.pdf</strong>` : '<strong>Date not read — type it in the Mixing tab</strong>'} · ${e.pages.length} pages${odd}</div>`;
+        return `<div class="auto-mix ${ok && !e.dateOdd ? 'ok' : 'warn'}">${ok ? `<strong>${escapeHtml(e.saveName)}.pdf</strong>` : (e.pages.some(p => !p.ocrResult) ? '<strong>Not read yet — check rotation meanwhile</strong>' : '<strong>Date not read — type it in the Mixing tab</strong>')} · ${e.pages.length} pages${odd}</div>`;
       }).join('') + `<button class="btn small primary" data-tabgo="mixing">Check Mixing →</button></div>`;
   }
   if (html) html += `<div class="auto-block"><p>When you've checked both, press <strong>⚡ Operate</strong> (Route &amp; Merge tab, or here).</p><button class="btn small" id="auto-operate" style="background:#7c3aed;color:#fff;border-color:#7c3aed;">⚡ Operate</button></div>`;
