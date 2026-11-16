@@ -265,7 +265,7 @@
     </svg>
   </div>
   <h1 id="app-title" title="Toggle API Keys">LineAssemblyHub</h1>
-  <span class="tag">v48</span>
+  <span class="tag">v49</span>
   <div class="status" id="storage-status" title="Browser local storage allocation">–</div>
   <span id="vision-badge" title="Google Vision API status" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Vision –</span>
   <span id="correction-badge" title="Correction API status (live-confirmed after first successful call)" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Correction –</span>
@@ -2656,7 +2656,7 @@ function renderMixingFileList() {
       <div class="mix-fname">${escapeHtml(entry.filename)}</div>
       <div class="mix-fmeta">${entry.pages.length} page${entry.pages.length !== 1 ? 's' : ''}</div>
       <div class="mix-fstatus ${entry.ocrDone ? 'done' : 'pending'}">${entry.ocrDone ? '✓ OCR done' : (entry.pages.some(p => p.ocrResult) ? '◐ Partly done' : '○ Pending')}${entry.savedAs ? ' · saved' : ''}</div>
-      <label class="mix-save">Save as <input type="text" value="${escapeHtml(entry.saveName || '')}" placeholder="13.11" class="${entry.ocrDone && !entry.saveName ? 'missing' : ''}">.pdf</label>
+      <label class="mix-save">Save as <input type="text" value="${escapeHtml(entry.saveName || '')}" placeholder="DD.MM" class="${entry.ocrDone && !entry.saveName ? 'missing' : ''}">.pdf</label>
       ${entry.dateVotes ? `<div class="mix-fdate ${entry.dateOdd || !entry.dateVotes.length ? 'warn' : ''}">${entry.dateVotes.length ? `Date read on ${entry.dateVotes[0][1]} of ${entry.pages.length} pages${entry.dateOdd ? ` · ${entry.dateOdd} ${entry.dateOdd !== 1 ? 'show' : 'shows'} another date` : ''}` : 'No date could be read — type it'}</div>` : ''}
       <div class="mix-fremove" data-idx="${idx}">✕ Remove</div>`;
     const nameInput = item.querySelector('.mix-save input');
