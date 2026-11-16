@@ -265,7 +265,7 @@
     </svg>
   </div>
   <h1 id="app-title" title="Toggle API Keys">LineAssemblyHub</h1>
-  <span class="tag">v49</span>
+  <span class="tag">v50</span>
   <div class="status" id="storage-status" title="Browser local storage allocation">–</div>
   <span id="vision-badge" title="Google Vision API status" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Vision –</span>
   <span id="correction-badge" title="Correction API status (live-confirmed after first successful call)" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Correction –</span>
@@ -1376,6 +1376,9 @@ async function runOperate() {
   if (!hasScan && !hasMixing) { toast('Nothing to operate on — sort a scan or load Mixing Batch Records', 'error'); return; }
   if (!state.googleApiKey) { toast('Vision Key required — click the logo to add it', 'error'); return; }
 
+  // Pressing Operate = you're done checking the sort → save the feedback now, so Export lights up straight away
+  if (hasScan) laCaptureFeedback();
+
   // Re-grant folder access while we still have the click (browsers need a click for this)
   await ensureFolderAccess();
 
@@ -1461,7 +1464,7 @@ async function doMerge() {
   let mergedPages = 0;
   let droppedBlankPages = 0;
   const learnRows = [];
-  const feedbackRows = [];
+  laCaptureFeedback(); // also saved here when Merge is pressed on its own
   const productIds = Object.keys(byProduct);
   let mergeCount = 0;
 
@@ -1504,7 +1507,6 @@ async function doMerge() {
         const au = state.scan.auto && state.scan.auto[pgObj.index];
         if (au && au.ocr && !pgObj.rotation) reuseOcr[newProductDoc.getPageCount() - 1] = au.ocr;
         if (au && au.fields) learnRows.push([product.name, au.fields.customer, au.fields.product, au.fields.line, au.fields.film, au.fields.sleeve, au.fields.tray, au.fields.tare]);
-        if (au && au.match) feedbackRows.push(laFeedbackRow(au, product.name, pgObj.index));
       } else {
         droppedBlankPages++;
       }
@@ -1537,7 +1539,6 @@ async function doMerge() {
   updateProductsList();
   updateStorageStatus();
   laRememberExamples(learnRows); // the sorter learns from what you confirmed
-  laRememberFeedback(feedbackRows);
   return { pages: mergedPages, products: productIds.length, blanks: droppedBlankPages };
 }
 document.getElementById('merge-btn').addEventListener('click', () => doMerge());
@@ -3231,24 +3232,39 @@ function laFeedbackRow(au, finalName, pageIdx) {
     changed: (au.match.pick || null) !== finalName,
   };
 }
-async function laRememberFeedback(rows) {
+// Rows for every sorted page of the current scan. Pressing Operate (or Merge) again for the same
+// scan replaces its rows, so a cancelled Operate followed by more changes doesn't count twice.
+async function laCaptureFeedback() {
+  if (!state.scan || !state.scan.auto) return;
+  if (!state.scan.feedbackId) state.scan.feedbackId = Date.now().toString(36);
+  const id = state.scan.feedbackId;
+  const rows = [];
+  state.scan.pages.forEach((pg, idx) => {
+    const au = state.scan.auto[idx];
+    const prod = pg.assignedProductId && state.products.find(p => p.id === pg.assignedProductId);
+    if (au && au.match && prod) rows.push({ ...laFeedbackRow(au, prod.name, idx), scanId: id, youChanged: !!pg.userSet });
+  });
   if (!rows.length) return;
   try {
-    const old = (await dbGet('settings', LA_FEEDBACK_KEY))?.value || [];
+    const old = ((await dbGet('settings', LA_FEEDBACK_KEY))?.value || []).filter(r => r.scanId !== id);
     await dbPut('settings', { key: LA_FEEDBACK_KEY, value: old.concat(rows).slice(-20000) });
   } catch (e) { console.warn('[Feedback]', e); }
   laFeedbackButton();
 }
 async function laFeedbackButton() {
   const b = document.getElementById('auto-feedback'); if (!b) return;
-  let n = 0;
-  try { n = ((await dbGet('settings', LA_FEEDBACK_KEY))?.value || []).length; } catch (_) {}
-  b.textContent = `⬇ Export sorting feedback (${n})`;
-  b.disabled = !n;
+  let rows = [];
+  try { rows = (await dbGet('settings', LA_FEEDBACK_KEY))?.value || []; } catch (_) {}
+  const fresh = rows.filter(r => !r.exported).length;
+  b.textContent = fresh ? `⬇ Export sorting feedback (${fresh} new pages)` : `⬇ Export sorting feedback${rows.length ? ' (all ' + rows.length + ')' : ''}`;
+  b.disabled = !rows.length;
+  b.classList.toggle('primary', fresh > 0);
 }
 async function laExportFeedback() {
-  const rows = (await dbGet('settings', LA_FEEDBACK_KEY))?.value || [];
-  if (!rows.length) { toast('No feedback yet — it builds up each time you merge auto-sorted pages', 'error'); return; }
+  const all = (await dbGet('settings', LA_FEEDBACK_KEY))?.value || [];
+  if (!all.length) { toast('No feedback yet — it is saved when you press Operate on an auto-sorted scan', 'error'); return; }
+  const fresh = all.filter(r => !r.exported);
+  const rows = (fresh.length ? fresh : all).map(({ exported, ...r }) => r); // new pages since the last export, or everything again
   const out = { app: 'LineAssemblyHub', version: 'v47', exported: new Date().toISOString(), pages: rows.length,
     changed: rows.filter(r => r.changed).length, rows };
   const blob = new Blob([JSON.stringify(out, null, 1)], { type: 'application/json' });
@@ -3257,6 +3273,8 @@ async function laExportFeedback() {
   a.download = `sorting-feedback-${new Date().toISOString().slice(0, 10)}.json`;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  try { await dbPut('settings', { key: LA_FEEDBACK_KEY, value: all.map(r => ({ ...r, exported: true })) }); } catch (_) {}
+  laFeedbackButton();
   toast(`Exported ${rows.length} pages (${out.changed} you changed)`, 'success');
 }
 
