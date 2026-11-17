@@ -265,7 +265,7 @@
     </svg>
   </div>
   <h1 id="app-title" title="Toggle API Keys">LineAssemblyHub</h1>
-  <span class="tag">v51</span>
+  <span class="tag">v52</span>
   <div class="status" id="storage-status" title="Browser local storage allocation">–</div>
   <span id="vision-badge" title="Google Vision API status" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Vision –</span>
   <span id="correction-badge" title="Correction API status (live-confirmed after first successful call)" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Correction –</span>
@@ -2818,14 +2818,14 @@ const LA_CATALOGUE = [
   { n: 'M&S AYR Rotisserie', c: 'MS', k: { AYR: 5, ROTISSERIE: 2 }, tray: '221165', tare: '44' },
   { n: 'M&S Aromatic Butter BDF', c: 'MS', k: { AROMATIC: 5, INDIAN: 5, BUTTER: 1 }, tare: '60' },
   { n: 'M&S BBQ Marinated BDF', c: 'MS', k: { BBQ: 4, MARINATED: 2 }, tare: '60' },
-  { n: 'M&S Butter Basted Joints', c: 'MS', k: { BUTTER: 2, BASTED: 2, JOINTS: 3 }, line: '5', tray: '320997', tare: '18', pair: 'joints' },
+  { n: 'M&S Butter Basted Joints', c: 'MS', k: { BUTTER: 2, BASTED: 2, JOINTS: 3 }, line: '5', tray: '320997', tare: '18', pair: 'joints', sleeveNum: '994' },
   { n: 'M&S Garlic and Herb', c: 'MS', k: { GARLIC: 3, HERB: 2 } },
   { n: 'M&S Hot Deli BBQ', c: 'MS', k: { BBQ: 2, HOT: 1, DELI: 1 }, discontinued: true },
-  { n: 'M&S Hot Deli Butter Basted', c: 'MS', k: { BUTTER: 2, BASTED: 2, HOT: 2, DELI: 2 }, line: '1', pack: 'PLUMA003' },
-  { n: 'M&S Hot Deli Piri Piri', c: 'MS', k: { PIRI: 4, PERI: 4, HOT: 1, DELI: 1 }, line: '1', pack: 'PLUMA003' },
+  { n: 'M&S Hot Deli Butter Basted', c: 'MS', k: { BUTTER: 2, BASTED: 2, HOT: 2, DELI: 2 }, line: '1', pack: 'PLUMA003', sleeveNum: '003' },
+  { n: 'M&S Hot Deli Piri Piri', c: 'MS', k: { PIRI: 4, PERI: 4, HOT: 1, DELI: 1 }, line: '1', pack: 'PLUMA003', sleeveNum: '003' },
   { n: 'M&S Jalapeno and Herb Spatchcock', c: 'MS', k: { JALAPENO: 5, GREEN: 3, CHILLI: 4, CHILI: 4, CHILLY: 4, HERB: 1 } },
   { n: 'M&S PSO', c: 'MS', k: { PSO: 4, PORK: 2, SAGE: 2, ONION: 2 } },
-  { n: 'M&S Rotisserie Joints', c: 'MS', k: { ROTISSERIE: 3, JOINTS: 3 }, line: '5', tray: '320997', tare: '18', pair: 'joints' },
+  { n: 'M&S Rotisserie Joints', c: 'MS', k: { ROTISSERIE: 3, JOINTS: 3 }, line: '5', tray: '320997', tare: '18', pair: 'joints', sleeveNum: '993' },
   { n: 'M&S Salt and Pepper BDF', c: 'MS', k: { SALT: 2, PEPPER: 2 }, sleeve: '9', tare: '60' },
   { n: 'M&S Dine In', c: 'MS', alias: ['M&S Salt and Pepper Dine In'], k: { DINE: 5, PROMO: 5, SALT: 2, PEPPER: 2 }, sleeve: '7' },
   { n: 'Ocado CROWN', c: 'OCADO', k: { CROWN: 5, SALT: 2, PEPPER: 2 } },
@@ -2834,6 +2834,7 @@ const LA_CATALOGUE = [
   { n: 'Ocado PSO', c: 'OCADO', k: { PSO: 4, PORK: 2, SAGE: 2, ONION: 2 } },
 ];
 
+const LA_SLEEVE_NUMS = new Set(['993', '994', '003']);
 const LA_STOP = new Set(['AND', 'THE', 'OF', 'MS', 'BDF', 'OCT', 'NOV', 'DEC', 'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'SEPT']);
 
 function laNormName(s) { return String(s || '').toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]/g, ''); }
@@ -2923,6 +2924,12 @@ function laKeywordHit(tokens, compact, K) {
 function laDigits(s) { return String(s || '').replace(/[OoQD]/g, '0').replace(/[Il|]/g, '1').replace(/[^0-9]/g, ''); }
 function laFilmCode(s) { const d = laDigits(s); const m = d.match(/65([23])1/); if (m) return m[1] === '2' ? '21' : '31'; const r = d.match(/\d{4,}/); return r ? r[0].slice(-2) : ''; }
 // The sleeve number is a 4-digit code (PLCMA 1029). A shorter run is part of another code, not the sleeve.
+// The sleeve's own number: PLCMA 993 = Rotisserie Joints, PLCMA 994 = Butter Basted Joints
+function laSleeveNum(s) {
+  let best = '';
+  for (const g of String(s || '').match(/\d{3,}/g) || []) best = g.slice(-3);
+  return best;
+}
 function laSleeveDigit(s) { const r = String(s || '').match(/(\d)\s*(\d)\s*(\d)\s*(\d)/); return r ? r[4] : ''; }
 function laTray(s) { const d = laDigits(s); if (/22116|21165/.test(d)) return '221165'; if (/32099|20997|32097/.test(d)) return '320997'; return ''; }
 function laTare(s) { const m = String(s || '').match(/\d+/); return m ? m[0].slice(0, 2) : ''; }
@@ -3016,7 +3023,7 @@ function laMatch(fields, productNames, learned, exclude) {
   }
   const tokens = laProductTokens(productRaw);
   const compact = tokens.join('');
-  const film = laFilmCode(fields.film), sleeve = laSleeveDigit(fields.sleeve), tray = laTray(fields.tray), tare = laTare(fields.tare);
+  const film = laFilmCode(fields.film), sleeve = laSleeveDigit(fields.sleeve), sleeveNum = laSleeveNum(fields.sleeve), tray = laTray(fields.tray), tare = laTare(fields.tare);
   const line = String(fields.line || '').trim();
 
   const scored = [];
@@ -3048,6 +3055,8 @@ function laMatch(fields, productNames, learned, exclude) {
     // rules
     if (e.film && film) { if (film === e.film) { s += 4; why.push('film'); } else s -= 4; }
     if (e.sleeve && sleeve) { if (sleeve === e.sleeve) { s += 4; why.push('sleeve'); } else s -= 4; }
+    // A sleeve number only counts against a product when it is one of the codes we know
+    if (e.sleeveNum && sleeveNum) { if (sleeveNum === e.sleeveNum) { s += 5; why.push('sleeve number'); } else if (LA_SLEEVE_NUMS.has(sleeveNum)) s -= 5; }
     if (e.line && line) { if (line === e.line) { s += 3; why.push('line'); } else s -= 4; }
     if (e.tray && tray) { if (tray === e.tray) { s += 1.5; why.push('tray'); } else s -= 3; }
     if (e.tare && tare) { if (tare === e.tare) { s += 1; why.push('tare'); } else s -= 1.5; }
@@ -3064,13 +3073,14 @@ function laMatch(fields, productNames, learned, exclude) {
   if (pick && pick === best && custRead && !custFromCodes && best.score >= 7 && best.score - second.score >= 3) level = 'green';
   else if (pick && pick.score >= 3) level = 'amber';
   // Two products that only the handwriting tells apart always get a check
-  if (level === 'green' && pick.pair && scored.some(x => x !== pick && x.pair === pick.pair && pick.score - x.score < 6)) level = 'amber';
+  if (level === 'green' && pick.pair && !pick.rules.includes('sleeve number') && scored.some(x => x !== pick && x.pair === pick.pair && pick.score - x.score < 6)) level = 'amber';
   const reasons = [];
   reasons.push(`Customer “${(fields.customer || '').trim() || '—'}” → ${custRead ? LA_CUSTOMER_LABEL[custRead] + (custFromCodes ? ' (from packaging codes)' : '') : 'not recognised'}`);
   reasons.push(`Product “${String(productRaw || '').trim() || '—'}”`);
   if (line) reasons.push(`Line ${line}`);
   if (film) reasons.push(`Film …${film}`);
-  if (sleeve) reasons.push(`Sleeve …${sleeve}`);
+  if (sleeveNum && LA_SLEEVE_NUMS.has(sleeveNum)) reasons.push(`Sleeve ${sleeveNum}`);
+  else if (sleeve) reasons.push(`Sleeve …${sleeve}`);
   if (tray) reasons.push(`Tray ${tray}`);
   if (tare) reasons.push(`Tare ${String(fields.tare).trim()}`);
   let note = '';
