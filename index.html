@@ -265,7 +265,7 @@
     </svg>
   </div>
   <h1 id="app-title" title="Toggle API Keys">LineAssemblyHub</h1>
-  <span class="tag">v50</span>
+  <span class="tag">v51</span>
   <div class="status" id="storage-status" title="Browser local storage allocation">–</div>
   <span id="vision-badge" title="Google Vision API status" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Vision –</span>
   <span id="correction-badge" title="Correction API status (live-confirmed after first successful call)" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Correction –</span>
@@ -2802,14 +2802,14 @@ const LA_CUSTOMER_LABEL = { ALDI: 'Aldi', ASDA: 'Asda', MS: 'M&S', OCADO: 'Ocado
 
 // Known products and Birat's rules. Names are the exact file names in the month folder.
 const LA_CATALOGUE = [
-  { n: 'Aldi Extra Tasty', c: 'ALDI', k: { EXTRA: 2, TASTY: 2 } },
+  { n: 'Aldi Extra Tasty', c: 'ALDI', k: { EXTRA: 2, TASTY: 2 }, film: '88', tare: '32' },
   { n: 'Aldi Garlic and Herb Spatchcock', c: 'ALDI', k: { GARLIC: 3, HERB: 2, SPATCHCOCK: 1 } },
   { n: 'Aldi PSO', c: 'ALDI', k: { PSO: 4, PORK: 2, SAGE: 2, ONION: 2 } },
   { n: 'Aldi Rotisserie Spatchcock', c: 'ALDI', k: { ROTISSERIE: 3, SPATCHCOCK: 1 } },
   { n: 'Asda Extra Tasty Large', c: 'ASDA', k: { EXTRA: 2, TASTY: 2, LARGE: 3 }, film: '21' },
   { n: 'Asda Extra Tasty Small', c: 'ASDA', k: { EXTRA: 2, TASTY: 2, SMALL: 3 }, film: '31' },
   { n: 'Asda Piri Piri Spatchcock', c: 'ASDA', k: { PIRI: 4, PERI: 4 } },
-  { n: 'ASDA PSO', c: 'ASDA', k: { PSO: 4, PORK: 2, SAGE: 2, ONION: 2 } },
+  { n: 'Asda PSO', c: 'ASDA', k: { PSO: 4, PORK: 2, SAGE: 2, ONION: 2 } },
   { n: 'Asda Lemon and Herb Spatchcock', c: 'ASDA', k: { LEMON: 5, HERB: 1 } },
   { n: 'Booths Rotisserie', c: 'BOOTHS', k: { ROTISSERIE: 2 } },
   { n: 'Co-op Garlic and Herb', c: 'COOP', k: { GARLIC: 3, HERB: 2 } },
@@ -2818,16 +2818,16 @@ const LA_CATALOGUE = [
   { n: 'M&S AYR Rotisserie', c: 'MS', k: { AYR: 5, ROTISSERIE: 2 }, tray: '221165', tare: '44' },
   { n: 'M&S Aromatic Butter BDF', c: 'MS', k: { AROMATIC: 5, INDIAN: 5, BUTTER: 1 }, tare: '60' },
   { n: 'M&S BBQ Marinated BDF', c: 'MS', k: { BBQ: 4, MARINATED: 2 }, tare: '60' },
-  { n: 'M&S Butter Basted Joints', c: 'MS', k: { BUTTER: 2, BASTED: 2, JOINTS: 3 }, line: '5', tray: '320997', tare: '18' },
+  { n: 'M&S Butter Basted Joints', c: 'MS', k: { BUTTER: 2, BASTED: 2, JOINTS: 3 }, line: '5', tray: '320997', tare: '18', pair: 'joints' },
   { n: 'M&S Garlic and Herb', c: 'MS', k: { GARLIC: 3, HERB: 2 } },
   { n: 'M&S Hot Deli BBQ', c: 'MS', k: { BBQ: 2, HOT: 1, DELI: 1 }, discontinued: true },
-  { n: 'M&S Hot Deli Butter Basted', c: 'MS', k: { BUTTER: 2, BASTED: 2, HOT: 2, DELI: 2 }, line: '1' },
-  { n: 'M&S Hot Deli Piri Piri', c: 'MS', k: { PIRI: 4, PERI: 4, HOT: 1, DELI: 1 }, line: '1' },
-  { n: 'M&S Jalapeno and Herb Spatchcock', c: 'MS', k: { JALAPENO: 5, GREEN: 3, HERB: 1 } },
+  { n: 'M&S Hot Deli Butter Basted', c: 'MS', k: { BUTTER: 2, BASTED: 2, HOT: 2, DELI: 2 }, line: '1', pack: 'PLUMA003' },
+  { n: 'M&S Hot Deli Piri Piri', c: 'MS', k: { PIRI: 4, PERI: 4, HOT: 1, DELI: 1 }, line: '1', pack: 'PLUMA003' },
+  { n: 'M&S Jalapeno and Herb Spatchcock', c: 'MS', k: { JALAPENO: 5, GREEN: 3, CHILLI: 4, CHILI: 4, CHILLY: 4, HERB: 1 } },
   { n: 'M&S PSO', c: 'MS', k: { PSO: 4, PORK: 2, SAGE: 2, ONION: 2 } },
-  { n: 'M&S Rotisserie Joints', c: 'MS', k: { ROTISSERIE: 3, JOINTS: 3 }, line: '5', tray: '320997', tare: '18' },
+  { n: 'M&S Rotisserie Joints', c: 'MS', k: { ROTISSERIE: 3, JOINTS: 3 }, line: '5', tray: '320997', tare: '18', pair: 'joints' },
   { n: 'M&S Salt and Pepper BDF', c: 'MS', k: { SALT: 2, PEPPER: 2 }, sleeve: '9', tare: '60' },
-  { n: 'M&S Dine In', c: 'MS', k: { DINE: 5, PROMO: 5, SALT: 2, PEPPER: 2 }, sleeve: '7' },
+  { n: 'M&S Dine In', c: 'MS', alias: ['M&S Salt and Pepper Dine In'], k: { DINE: 5, PROMO: 5, SALT: 2, PEPPER: 2 }, sleeve: '7' },
   { n: 'Ocado CROWN', c: 'OCADO', k: { CROWN: 5, SALT: 2, PEPPER: 2 } },
   { n: 'Ocado Extra Tasty', c: 'OCADO', k: { EXTRA: 2, TASTY: 2 } },
   { n: 'Ocado Garlic and Herb', c: 'OCADO', k: { GARLIC: 3, HERB: 2 } },
@@ -2854,10 +2854,14 @@ function laSim(a, b) { const L = Math.max(a.length, b.length); return L ? 1 - la
 
 // Which customer was written in the Customer box
 function laDetectCustomer(raw, learnedCust) {
-  const s = String(raw || '').toUpperCase();
+  let s = String(raw || '').toUpperCase();
+  // The scanner sometimes doubles letters: "M M + + S S OCADO" is "M + S OCADO"
+  s = s.replace(/\b([A-Z])\s+\1\b/g, '$1').replace(/([&+])\s*\1/g, '$1');
   const compact = s.replace(/[^A-Z0-9&+]/g, '');
   if (!compact) return null;
-  if (/M\s*[&+]\s*S/.test(s) || /\bM\s+S\b/.test(s) || /^(MS|MAS|MIS|M5|MNS|M\+S|M&S|MES|MAND|MANDS)/.test(compact) || /MARKS/.test(compact)) return 'MS';
+  if (/M\s*[&+]\s*S/.test(s) || /\bM\s+S\b/.test(s) || /^(MS|MAS|MIS|MKS|MTS|M5|MNS|M\+S|M&S|MES|MAND|MANDS)/.test(compact) || /MARKS/.test(compact)) return 'MS';
+  // "M&S Ocado" (any M/S marker written next to OCADO) is an M&S product, not Ocado's own
+  if (/OCADO/.test(compact) && /(^|[^A-Z])(M|MS|[&+]\s*S)([^A-Z]|$)/.test(s.replace(/OCADO/g, ' '))) return 'MS';
   const letters = compact.replace(/[^A-Z]/g, '');
   if (learnedCust && learnedCust[compact]) return learnedCust[compact];
   let best = null, bs = 0;
@@ -2901,6 +2905,7 @@ function laKeywordHit(tokens, compact, K) {
     if (t.length >= 4) {
       const sim = laSim(t, K);
       if (sim >= 0.72) return sim;
+      if (K.length >= 6 && t.length >= 5 && sim >= 0.66) return sim * 0.9; // "BATHED" for BASTED
       if (t.length > K.length && t.includes(K)) return 0.9;
       if (K.length >= 6 && t.length >= 5 && t.length < K.length && laSim(t, K.slice(0, t.length)) >= 0.8) return 0.75; // "ROTIS" for ROTISSERIE
     }
@@ -2917,15 +2922,17 @@ function laKeywordHit(tokens, compact, K) {
 
 function laDigits(s) { return String(s || '').replace(/[OoQD]/g, '0').replace(/[Il|]/g, '1').replace(/[^0-9]/g, ''); }
 function laFilmCode(s) { const d = laDigits(s); const m = d.match(/65([23])1/); if (m) return m[1] === '2' ? '21' : '31'; const r = d.match(/\d{4,}/); return r ? r[0].slice(-2) : ''; }
-function laSleeveDigit(s) { const d = laDigits(s); const r = String(s || '').match(/(\d)\s*(\d)\s*(\d)\s*(\d)/); const run = r ? r.slice(1).join('') : (d.match(/\d{3,}/) || [''])[0]; return run ? run.slice(-1) : ''; }
+// The sleeve number is a 4-digit code (PLCMA 1029). A shorter run is part of another code, not the sleeve.
+function laSleeveDigit(s) { const r = String(s || '').match(/(\d)\s*(\d)\s*(\d)\s*(\d)/); return r ? r[4] : ''; }
 function laTray(s) { const d = laDigits(s); if (/22116|21165/.test(d)) return '221165'; if (/32099|20997|32097/.test(d)) return '320997'; return ''; }
 function laTare(s) { const m = String(s || '').match(/\d+/); return m ? m[0].slice(0, 2) : ''; }
 
 // Build what the matcher learns from examples: [product, customer_raw, product_raw, ...]
 function laBuildLearned(examples, products) {
-  const tok = {}, cust = {}, custVotes = {}, pre = {}, preVotes = {};
+  const tok = {}, cust = {}, custVotes = {}, pre = {}, preVotes = {}, freq = {};
   for (const ex of examples) {
     const name = ex[0];
+    freq[name] = (freq[name] || 0) + 1;
     for (const t of new Set(laProductTokens(ex[2]))) {
       tok[t] = tok[t] || {}; tok[t][name] = (tok[t][name] || 0) + 1;
     }
@@ -2946,7 +2953,7 @@ function laBuildLearned(examples, products) {
     const best = Object.entries(v).sort((a, b) => b[1] - a[1])[0];
     if (best[1] >= 2 && best[1] / Object.values(v).reduce((a, b) => a + b, 0) >= 0.8) cust[k] = best[0];
   }
-  return { tok, cust, pre };
+  return { tok, cust, pre, freq };
 }
 function laCodePrefix(s) { const m = String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '').match(/^[A-Z]{4,5}/); return m ? m[0].slice(0, 5) : ''; }
 // Customer hinted by packaging codes (used when the Customer box is unreadable)
@@ -2960,7 +2967,18 @@ function laCustomerFromCodes(fields, learned) {
 
 function laCatalogueEntry(name) {
   const k = laNormName(name);
-  return LA_CATALOGUE.find(e => laNormName(e.n) === k) || null;
+  return LA_CATALOGUE.find(e => laNormName(e.n) === k || (e.alias || []).some(a => laNormName(a) === k)) || null;
+}
+// Letters+digits of a packaging code, for rules like PLUMA 003 = Hot Deli
+function laPackCode(s) { return String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '').replace(/O/g, '0').replace(/I/g, '1'); }
+function laPackHit(fields, want) {
+  const w = laPackCode(want);
+  for (const f of [fields.sleeve, fields.film, fields.tray]) {
+    const c = laPackCode(f);
+    if (!c || c.length < 5) continue;
+    for (let i = 0; i + w.length <= c.length; i++) if (laSim(c.substr(i, w.length), w) >= 0.8) return true;
+  }
+  return false;
 }
 function laProductCustomer(name, products) {
   const e = laCatalogueEntry(name); if (e) return e.c;
@@ -2979,12 +2997,24 @@ function laProductKeywords(name) {
 // fields: { customer, product, line, film, sleeve, tray, tare }
 // productNames: names of products in the user's list. learned: from laBuildLearned.
 function laMatch(fields, productNames, learned, exclude) {
-  const names = new Set(productNames);
-  for (const e of LA_CATALOGUE) names.add(e.n);          // also score known products not yet in the list
+  // One entry per product: your spelling wins, so a catalogue name never competes with your own
+  const byName = new Map();
+  for (const n of productNames) byName.set(laNormName(n), n);
+  for (const e of LA_CATALOGUE) {
+    const keys = [e.n, ...(e.alias || [])].map(laNormName);
+    if (!keys.some(k => byName.has(k))) byName.set(laNormName(e.n), e.n);
+  }
+  const names = new Set(byName.values());
   let custRead = laDetectCustomer(fields.customer, learned && learned.cust);
   let custFromCodes = false;
   if (!custRead) { custRead = laCustomerFromCodes(fields, learned); custFromCodes = !!custRead; }
-  const tokens = laProductTokens(fields.product);
+  // Sometimes the product is written across the Customer box: use the rest of that line
+  let productRaw = fields.product;
+  if (!laProductTokens(productRaw).length) {
+    const rest = String(fields.customer || '').trim().split(/\s+/).slice(1).join(' ');
+    if (laProductTokens(rest).length) productRaw = rest;
+  }
+  const tokens = laProductTokens(productRaw);
   const compact = tokens.join('');
   const film = laFilmCode(fields.film), sleeve = laSleeveDigit(fields.sleeve), tray = laTray(fields.tray), tare = laTare(fields.tare);
   const line = String(fields.line || '').trim();
@@ -3002,6 +3032,7 @@ function laMatch(fields, productNames, learned, exclude) {
     let kwScore = 0;
     for (const [K, w] of Object.entries(kw)) { const h = laKeywordHit(tokens, compact, K); if (h) { kwScore += w * h; } }
     s += Math.min(kwScore, 8);
+    if (kwScore >= 2) s += 1.5;   // the words written on the sheet back this product, not just its packaging
     // learned spellings (misreads seen in earlier sheets)
     if (learned) {
       let ls = 0;
@@ -3020,19 +3051,23 @@ function laMatch(fields, productNames, learned, exclude) {
     if (e.line && line) { if (line === e.line) { s += 3; why.push('line'); } else s -= 4; }
     if (e.tray && tray) { if (tray === e.tray) { s += 1.5; why.push('tray'); } else s -= 3; }
     if (e.tare && tare) { if (tare === e.tare) { s += 1; why.push('tare'); } else s -= 1.5; }
+    if (e.pack && laPackHit(fields, e.pack)) { s += 3; why.push('packaging code'); }
     if (e.discontinued) s -= 6;
-    scored.push({ name, score: s, inList: productNames.includes(name), rules: why });
+    scored.push({ name, score: s, inList: productNames.includes(name), rules: why, pair: e.pair || '' });
   }
-  scored.sort((a, b) => b.score - a.score);
-  const best = scored[0], second = scored[1] || { score: -99 };
+  const freq = (learned && learned.freq) || {};
+  scored.sort((a, b) => (b.score - a.score) || ((freq[b.name] || 0) - (freq[a.name] || 0)) || a.name.localeCompare(b.name));
+  const best = scored[0], second = scored.find(x => x.name !== (scored[0] || {}).name) || { score: -99, name: '' };
   const pickable = scored.filter(x => x.inList);
   const pick = pickable[0] || null;
   let level = 'red';
   if (pick && pick === best && custRead && !custFromCodes && best.score >= 7 && best.score - second.score >= 3) level = 'green';
   else if (pick && pick.score >= 3) level = 'amber';
+  // Two products that only the handwriting tells apart always get a check
+  if (level === 'green' && pick.pair && scored.some(x => x !== pick && x.pair === pick.pair && pick.score - x.score < 6)) level = 'amber';
   const reasons = [];
   reasons.push(`Customer “${(fields.customer || '').trim() || '—'}” → ${custRead ? LA_CUSTOMER_LABEL[custRead] + (custFromCodes ? ' (from packaging codes)' : '') : 'not recognised'}`);
-  reasons.push(`Product “${(fields.product || '').trim() || '—'}”`);
+  reasons.push(`Product “${String(productRaw || '').trim() || '—'}”`);
   if (line) reasons.push(`Line ${line}`);
   if (film) reasons.push(`Film …${film}`);
   if (sleeve) reasons.push(`Sleeve …${sleeve}`);
@@ -3265,7 +3300,7 @@ async function laExportFeedback() {
   if (!all.length) { toast('No feedback yet — it is saved when you press Operate on an auto-sorted scan', 'error'); return; }
   const fresh = all.filter(r => !r.exported);
   const rows = (fresh.length ? fresh : all).map(({ exported, ...r }) => r); // new pages since the last export, or everything again
-  const out = { app: 'LineAssemblyHub', version: 'v47', exported: new Date().toISOString(), pages: rows.length,
+  const out = { app: 'LineAssemblyHub', version: (document.querySelector('.tag') || {}).textContent || '', exported: new Date().toISOString(), pages: rows.length,
     changed: rows.filter(r => r.changed).length, rows };
   const blob = new Blob([JSON.stringify(out, null, 1)], { type: 'application/json' });
   const a = document.createElement('a');
