@@ -265,7 +265,7 @@
     </svg>
   </div>
   <h1 id="app-title" title="Toggle API Keys">LineAssemblyHub</h1>
-  <span class="tag">v52</span>
+  <span class="tag">v53</span>
   <div class="status" id="storage-status" title="Browser local storage allocation">–</div>
   <span id="vision-badge" title="Google Vision API status" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Vision –</span>
   <span id="correction-badge" title="Correction API status (live-confirmed after first successful call)" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Correction –</span>
@@ -1372,6 +1372,7 @@ document.getElementById('operate-status-close').addEventListener('click', hideOp
 async function runOperate() {
   if (window._operateStep) { toast(`Please wait — ${window._operateStep} is still running`, 'error'); return; }
   const hasScan = !!(state.scan && state.scan.pages.some(p => p.assignedProductId));
+  tabAlertStop();
   const hasMixing = mixingQueue.some(e => e.pages.length > 0);
   if (!hasScan && !hasMixing) { toast('Nothing to operate on — sort a scan or load Mixing Batch Records', 'error'); return; }
   if (!state.googleApiKey) { toast('Vision Key required — click the logo to add it', 'error'); return; }
@@ -1434,6 +1435,7 @@ async function runOperate() {
     }
     showOperateStatus('ok', 'Operate complete', done);
     toast('⚡ Operate complete ✓', 'success');
+    tabAlert('✅ Operate done');
   } catch (e) {
     console.error('[Operate]', e);
     const where = window._operateStep || 'Operate';
@@ -1478,16 +1480,10 @@ async function doMerge() {
     const newProductDoc = await PDFLib.PDFDocument.create();
 
     if (product.pageCount > 0) {
-      const oldPdfJsDoc = await pdfjsLib.getDocument({ data: product.pdfBytes.slice() }).promise;
-      for (let i = 0; i < oldProductDoc.getPageCount(); i++) {
-        const blank = await isPageBlank(oldPdfJsDoc, i + 1);
-        if (!blank) {
-          const [copiedPage] = await newProductDoc.copyPages(oldProductDoc, [i]);
-          newProductDoc.addPage(copiedPage);
-        } else {
-          droppedBlankPages++;
-        }
-      }
+      // Pages already in the file were checked when they were added — drawing every one of them
+      // again is what made saving slow, so they are copied straight across.
+      const idx = Array.from({ length: oldProductDoc.getPageCount() }, (_, i) => i);
+      for (const copiedPage of await newProductDoc.copyPages(oldProductDoc, idx)) newProductDoc.addPage(copiedPage);
     }
 
     const reuseOcr = {};
@@ -2802,39 +2798,42 @@ const LA_CUSTOMER_LABEL = { ALDI: 'Aldi', ASDA: 'Asda', MS: 'M&S', OCADO: 'Ocado
 
 // Known products and Birat's rules. Names are the exact file names in the month folder.
 const LA_CATALOGUE = [
-  { n: 'Aldi Extra Tasty', c: 'ALDI', k: { EXTRA: 2, TASTY: 2 }, film: '88', tare: '32' },
+  { n: 'Aldi Extra Tasty', c: 'ALDI', k: { EXTRA: 2, TASTY: 2 }, tare: '32', filmNum: '188' },
   { n: 'Aldi Garlic and Herb Spatchcock', c: 'ALDI', k: { GARLIC: 3, HERB: 2, SPATCHCOCK: 1 } },
   { n: 'Aldi PSO', c: 'ALDI', k: { PSO: 4, PORK: 2, SAGE: 2, ONION: 2 } },
-  { n: 'Aldi Rotisserie Spatchcock', c: 'ALDI', k: { ROTISSERIE: 3, SPATCHCOCK: 1 } },
-  { n: 'Asda Extra Tasty Large', c: 'ASDA', k: { EXTRA: 2, TASTY: 2, LARGE: 3 }, film: '21' },
-  { n: 'Asda Extra Tasty Small', c: 'ASDA', k: { EXTRA: 2, TASTY: 2, SMALL: 3 }, film: '31' },
+  { n: 'Aldi Rotisserie Spatchcock', c: 'ALDI', k: { ROTISSERIE: 3, SPATCHCOCK: 1 }, sleeveNum: '177' },
+  { n: 'Asda Extra Tasty Large', c: 'ASDA', k: { EXTRA: 2, TASTY: 2, LARGE: 3 }, filmNum: '521' },
+  { n: 'Asda Extra Tasty Small', c: 'ASDA', k: { EXTRA: 2, TASTY: 2, SMALL: 3 }, filmNum: '531' },
   { n: 'Asda Piri Piri Spatchcock', c: 'ASDA', k: { PIRI: 4, PERI: 4 } },
   { n: 'Asda PSO', c: 'ASDA', k: { PSO: 4, PORK: 2, SAGE: 2, ONION: 2 } },
   { n: 'Asda Lemon and Herb Spatchcock', c: 'ASDA', k: { LEMON: 5, HERB: 1 } },
   { n: 'Booths Rotisserie', c: 'BOOTHS', k: { ROTISSERIE: 2 } },
   { n: 'Co-op Garlic and Herb', c: 'COOP', k: { GARLIC: 3, HERB: 2 } },
   { n: 'Costco Rotisserie', c: 'COSTCO', k: { ROTISSERIE: 2 } },
-  { n: 'Iceland Extra Tasty', c: 'ICELAND', k: { EXTRA: 2, TASTY: 2 } },
-  { n: 'M&S AYR Rotisserie', c: 'MS', k: { AYR: 5, ROTISSERIE: 2 }, tray: '221165', tare: '44' },
+  { n: 'Iceland Extra Tasty', c: 'ICELAND', k: { EXTRA: 2, TASTY: 2 }, filmNum: '115' },
+  { n: 'M&S AYR Rotisserie', c: 'MS', k: { AYR: 5, ROTISSERIE: 2 }, tray: '221165', tare: '44', filmNum: '936' },
   { n: 'M&S Aromatic Butter BDF', c: 'MS', k: { AROMATIC: 5, INDIAN: 5, BUTTER: 1 }, tare: '60' },
-  { n: 'M&S BBQ Marinated BDF', c: 'MS', k: { BBQ: 4, MARINATED: 2 }, tare: '60' },
+  { n: 'M&S BBQ Marinated BDF', c: 'MS', k: { BBQ: 4, MARINATED: 2 }, tare: '60', sleeveNum: '025' },
   { n: 'M&S Butter Basted Joints', c: 'MS', k: { BUTTER: 2, BASTED: 2, JOINTS: 3 }, line: '5', tray: '320997', tare: '18', pair: 'joints', sleeveNum: '994' },
-  { n: 'M&S Garlic and Herb', c: 'MS', k: { GARLIC: 3, HERB: 2 } },
+  { n: 'M&S Garlic and Herb', c: 'MS', k: { GARLIC: 3, HERB: 2 }, filmNum: '935' },
   { n: 'M&S Hot Deli BBQ', c: 'MS', k: { BBQ: 2, HOT: 1, DELI: 1 }, discontinued: true },
   { n: 'M&S Hot Deli Butter Basted', c: 'MS', k: { BUTTER: 2, BASTED: 2, HOT: 2, DELI: 2 }, line: '1', pack: 'PLUMA003', sleeveNum: '003' },
   { n: 'M&S Hot Deli Piri Piri', c: 'MS', k: { PIRI: 4, PERI: 4, HOT: 1, DELI: 1 }, line: '1', pack: 'PLUMA003', sleeveNum: '003' },
-  { n: 'M&S Jalapeno and Herb Spatchcock', c: 'MS', k: { JALAPENO: 5, GREEN: 3, CHILLI: 4, CHILI: 4, CHILLY: 4, HERB: 1 } },
-  { n: 'M&S PSO', c: 'MS', k: { PSO: 4, PORK: 2, SAGE: 2, ONION: 2 } },
+  { n: 'M&S Jalapeno and Herb Spatchcock', c: 'MS', k: { JALAPENO: 5, GREEN: 3, CHILLI: 4, CHILI: 4, CHILLY: 4, HERB: 1 }, sleeveNum: '998' },
+  { n: 'M&S PSO', c: 'MS', k: { PSO: 4, PORK: 2, SAGE: 2, ONION: 2 }, filmNum: '937' },
   { n: 'M&S Rotisserie Joints', c: 'MS', k: { ROTISSERIE: 3, JOINTS: 3 }, line: '5', tray: '320997', tare: '18', pair: 'joints', sleeveNum: '993' },
-  { n: 'M&S Salt and Pepper BDF', c: 'MS', k: { SALT: 2, PEPPER: 2 }, sleeve: '9', tare: '60' },
+  { n: 'M&S Salt and Pepper BDF', c: 'MS', k: { SALT: 2, PEPPER: 2 }, sleeve: '9', tare: '60', sleeveNum: '029' },
   { n: 'M&S Dine In', c: 'MS', alias: ['M&S Salt and Pepper Dine In'], k: { DINE: 5, PROMO: 5, SALT: 2, PEPPER: 2 }, sleeve: '7' },
-  { n: 'Ocado CROWN', c: 'OCADO', k: { CROWN: 5, SALT: 2, PEPPER: 2 } },
-  { n: 'Ocado Extra Tasty', c: 'OCADO', k: { EXTRA: 2, TASTY: 2 } },
-  { n: 'Ocado Garlic and Herb', c: 'OCADO', k: { GARLIC: 3, HERB: 2 } },
+  { n: 'Ocado CROWN', c: 'OCADO', k: { CROWN: 5, SALT: 2, PEPPER: 2 }, filmNum: '095', sleeveNum: '816' },
+  { n: 'Ocado Extra Tasty', c: 'OCADO', k: { EXTRA: 2, TASTY: 2 }, filmNum: '925' },
+  { n: 'Ocado Garlic and Herb', c: 'OCADO', k: { GARLIC: 3, HERB: 2 }, filmNum: '926' },
   { n: 'Ocado PSO', c: 'OCADO', k: { PSO: 4, PORK: 2, SAGE: 2, ONION: 2 } },
 ];
 
-const LA_SLEEVE_NUMS = new Set(['993', '994', '003']);
+// Codes read often enough on your sheets to be trusted. A code in this set counts against the
+// products it does not belong to; 998 is left out of that because it is also read for 993.
+const LA_SLEEVE_NUMS = new Set(['993', '994', '003', '025', '029', '177', '816']);
+const LA_FILM_NUMS = new Set(['095', '115', '188', '521', '531', '925', '926', '935', '936', '937']);
 const LA_STOP = new Set(['AND', 'THE', 'OF', 'MS', 'BDF', 'OCT', 'NOV', 'DEC', 'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'SEPT']);
 
 function laNormName(s) { return String(s || '').toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]/g, ''); }
@@ -2925,10 +2924,10 @@ function laDigits(s) { return String(s || '').replace(/[OoQD]/g, '0').replace(/[
 function laFilmCode(s) { const d = laDigits(s); const m = d.match(/65([23])1/); if (m) return m[1] === '2' ? '21' : '31'; const r = d.match(/\d{4,}/); return r ? r[0].slice(-2) : ''; }
 // The sleeve number is a 4-digit code (PLCMA 1029). A shorter run is part of another code, not the sleeve.
 // The sleeve's own number: PLCMA 993 = Rotisserie Joints, PLCMA 994 = Butter Basted Joints
-function laSleeveNum(s) {
-  let best = '';
-  for (const g of String(s || '').match(/\d{3,}/g) || []) best = g.slice(-3);
-  return best;
+function laSleeveNum(s, known) {
+  for (const g of String(s || '').match(/\d{3,}/g) || []) if (known.has(g.slice(-3))) return g.slice(-3);
+  const all = String(s || '').match(/\d{3,}/g);
+  return all ? all[all.length - 1].slice(-3) : '';
 }
 function laSleeveDigit(s) { const r = String(s || '').match(/(\d)\s*(\d)\s*(\d)\s*(\d)/); return r ? r[4] : ''; }
 function laTray(s) { const d = laDigits(s); if (/22116|21165/.test(d)) return '221165'; if (/32099|20997|32097/.test(d)) return '320997'; return ''; }
@@ -3023,7 +3022,8 @@ function laMatch(fields, productNames, learned, exclude) {
   }
   const tokens = laProductTokens(productRaw);
   const compact = tokens.join('');
-  const film = laFilmCode(fields.film), sleeve = laSleeveDigit(fields.sleeve), sleeveNum = laSleeveNum(fields.sleeve), tray = laTray(fields.tray), tare = laTare(fields.tare);
+  const film = laFilmCode(fields.film), sleeve = laSleeveDigit(fields.sleeve),
+    sleeveNum = laSleeveNum(fields.sleeve, LA_SLEEVE_NUMS), filmNum = laSleeveNum(fields.film, LA_FILM_NUMS), tray = laTray(fields.tray), tare = laTare(fields.tare);
   const line = String(fields.line || '').trim();
 
   const scored = [];
@@ -3056,7 +3056,8 @@ function laMatch(fields, productNames, learned, exclude) {
     if (e.film && film) { if (film === e.film) { s += 4; why.push('film'); } else s -= 4; }
     if (e.sleeve && sleeve) { if (sleeve === e.sleeve) { s += 4; why.push('sleeve'); } else s -= 4; }
     // A sleeve number only counts against a product when it is one of the codes we know
-    if (e.sleeveNum && sleeveNum) { if (sleeveNum === e.sleeveNum) { s += 5; why.push('sleeve number'); } else if (LA_SLEEVE_NUMS.has(sleeveNum)) s -= 5; }
+    if (e.sleeveNum && sleeveNum) { if (sleeveNum === e.sleeveNum) { s += 6; why.push('sleeve number'); } else if (LA_SLEEVE_NUMS.has(sleeveNum)) s -= 5; }
+    if (e.filmNum && filmNum) { if (filmNum === e.filmNum) { s += 6; why.push('film number'); } else if (LA_FILM_NUMS.has(filmNum)) s -= 5; }
     if (e.line && line) { if (line === e.line) { s += 3; why.push('line'); } else s -= 4; }
     if (e.tray && tray) { if (tray === e.tray) { s += 1.5; why.push('tray'); } else s -= 3; }
     if (e.tare && tare) { if (tare === e.tare) { s += 1; why.push('tare'); } else s -= 1.5; }
@@ -3078,7 +3079,8 @@ function laMatch(fields, productNames, learned, exclude) {
   reasons.push(`Customer “${(fields.customer || '').trim() || '—'}” → ${custRead ? LA_CUSTOMER_LABEL[custRead] + (custFromCodes ? ' (from packaging codes)' : '') : 'not recognised'}`);
   reasons.push(`Product “${String(productRaw || '').trim() || '—'}”`);
   if (line) reasons.push(`Line ${line}`);
-  if (film) reasons.push(`Film …${film}`);
+  if (filmNum && LA_FILM_NUMS.has(filmNum)) reasons.push(`Film ${filmNum}`);
+  else if (film) reasons.push(`Film …${film}`);
   if (sleeveNum && LA_SLEEVE_NUMS.has(sleeveNum)) reasons.push(`Sleeve ${sleeveNum}`);
   else if (sleeve) reasons.push(`Sleeve …${sleeve}`);
   if (tray) reasons.push(`Tray ${tray}`);
