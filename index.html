@@ -64,6 +64,12 @@
   .thumb canvas { width: auto; height: auto; max-width: 100%; max-height: calc(100vh - 330px); transition: transform 0.3s ease; }
   .thumb .rotate-btn { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.8); color: #fff; border: 1px solid #444; border-radius: 4px; padding: 6px 10px; cursor: pointer; font-size: 13px; font-weight: 600; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.3); transition: background 0.2s; }
   .thumb .rotate-btn:hover { background: #000; }
+  .thumb .del-btn { position: absolute; top: 4px; left: 4px; background: rgba(185,28,28,0.9); color: #fff; border: 1px solid #7f1d1d; border-radius: 4px; padding: 6px 10px; cursor: pointer; font-size: 13px; font-weight: 700; z-index: 10; }
+  .thumb .del-btn:hover { background: #991b1b; }
+  .thumb.removed { opacity: 1; }
+  .thumb.removed .canvas-wrap, .thumb.removed .assign-btn, .thumb.removed .auto-badge { display: none; }
+  .thumb .removed-note { display: none; padding: 18px 12px; text-align: center; color: #7f1d1d; background: #fef2f2; border: 1px dashed #fca5a5; border-radius: 6px; font-size: 13px; }
+  .thumb.removed .removed-note { display: block; }
   .thumb .page-num { font-size: 11px; color: #78716c; margin-top: 6px; text-align: center; font-weight: 500; }
   .thumb select { width: 100%; margin-top: 6px; font-size: 13px; padding: 6px; border: 1px solid #d6d3d1; border-radius: 3px; font-weight: 500; }
 
@@ -265,7 +271,7 @@
     </svg>
   </div>
   <h1 id="app-title" title="Toggle API Keys">LineAssemblyHub</h1>
-  <span class="tag">v53</span>
+  <span class="tag">v54</span>
   <div class="status" id="storage-status" title="Browser local storage allocation">–</div>
   <span id="vision-badge" title="Google Vision API status" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Vision –</span>
   <span id="correction-badge" title="Correction API status (live-confirmed after first successful call)" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Correction –</span>
@@ -763,6 +769,24 @@ async function loadScan(file) {
   }
 }
 
+// A page that belongs to no product (a stray sheet, a repeat) is left out of the merge
+function setPageRemoved(idx, removed) {
+  const pg = state.scan && state.scan.pages[idx];
+  if (!pg) return;
+  pg.removed = removed;
+  if (removed) {
+    const sel = document.querySelector(`#thumbs select[data-page-idx="${idx}"]`);
+    if (sel) { sel.value = ''; if (sel._btn) sel._btn.textContent = '— unassigned —'; }
+    pg.assignedProductId = null;
+  }
+  const card = document.querySelector(`#thumbs .thumb[data-page-idx="${idx}"]`);
+  if (card) card.classList.toggle('removed', !!removed);
+  updateProductsList();
+  updateMergeButton();
+  renderAutoSummary();
+  toast(removed ? `Page ${idx + 1} removed from this scan` : `Page ${idx + 1} put back`, removed ? '' : 'success');
+}
+
 async function renderThumbs(opts = {}) {
   const thumbsEl = document.getElementById('thumbs');
   thumbsEl.innerHTML = '';
@@ -799,6 +823,13 @@ async function renderThumbs(opts = {}) {
       canvasWrap.classList.toggle('crop', r === 0 && viewport.height > viewport.width); // turned pages show whole
     };
     canvasWrap.appendChild(rotateBtn);
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'del-btn';
+    delBtn.textContent = '✕ Remove';
+    delBtn.title = 'This page does not belong in any product — leave it out of the merge';
+    delBtn.onclick = (e) => { e.stopPropagation(); setPageRemoved(i - 1, true); };
+    canvasWrap.appendChild(delBtn);
     
     canvasWrap.title = 'Click to open full view';
     canvasWrap.addEventListener('click', (e) => {
@@ -812,6 +843,12 @@ async function renderThumbs(opts = {}) {
     pageNum.className = 'page-num';
     pageNum.textContent = `Page ${i}`;
     div.appendChild(pageNum);
+
+    const removedNote = document.createElement('div');
+    removedNote.className = 'removed-note';
+    removedNote.innerHTML = `Page ${i} removed — it will not be merged. <a href="#" style="color:#0f766e;font-weight:600;">Put it back</a>`;
+    removedNote.querySelector('a').onclick = (e) => { e.preventDefault(); setPageRemoved(i - 1, false); };
+    div.appendChild(removedNote);
 
     const sel = document.createElement('select');
     sel.dataset.pageIdx = i - 1;
@@ -828,7 +865,7 @@ async function renderThumbs(opts = {}) {
     syncAssignBtn(sel);
 
     thumbsEl.appendChild(div);
-    state.scan.pages.push({ index: i - 1, assignedProductId: null, rotation: 0 });
+    state.scan.pages.push({ index: i - 1, assignedProductId: null, rotation: 0, removed: false });
     if (state.scan.auto) applyAutoToThumb(i - 1);
   }
 }
@@ -1502,7 +1539,7 @@ async function doMerge() {
         // Page already read at upload → keep that OCR so Operate doesn't read it again
         const au = state.scan.auto && state.scan.auto[pgObj.index];
         if (au && au.ocr && !pgObj.rotation) reuseOcr[newProductDoc.getPageCount() - 1] = au.ocr;
-        if (au && au.fields) learnRows.push([product.name, au.fields.customer, au.fields.product, au.fields.line, au.fields.film, au.fields.sleeve, au.fields.tray, au.fields.tare]);
+        if (au && au.fields && (au.fields.customer || au.fields.product)) learnRows.push([product.name, au.fields.customer, au.fields.product, au.fields.line, au.fields.film, au.fields.sleeve, au.fields.tray, au.fields.tare]);
       } else {
         droppedBlankPages++;
       }
@@ -2812,16 +2849,16 @@ const LA_CATALOGUE = [
   { n: 'Costco Rotisserie', c: 'COSTCO', k: { ROTISSERIE: 2 } },
   { n: 'Iceland Extra Tasty', c: 'ICELAND', k: { EXTRA: 2, TASTY: 2 }, filmNum: '115' },
   { n: 'M&S AYR Rotisserie', c: 'MS', k: { AYR: 5, ROTISSERIE: 2 }, tray: '221165', tare: '44', filmNum: '936' },
-  { n: 'M&S Aromatic Butter BDF', c: 'MS', k: { AROMATIC: 5, INDIAN: 5, BUTTER: 1 }, tare: '60' },
+  { n: 'M&S Aromatic Butter BDF', c: 'MS', k: { AROMATIC: 5, INDIAN: 5, BUTTER: 1 }, tare: '60', sleeveNum: '027' },
   { n: 'M&S BBQ Marinated BDF', c: 'MS', k: { BBQ: 4, MARINATED: 2 }, tare: '60', sleeveNum: '025' },
-  { n: 'M&S Butter Basted Joints', c: 'MS', k: { BUTTER: 2, BASTED: 2, JOINTS: 3 }, line: '5', tray: '320997', tare: '18', pair: 'joints', sleeveNum: '994' },
+  { n: 'M&S Butter Basted Joints', c: 'MS', k: { BUTTER: 2, BASTED: 2, JOINTS: 3 }, line: '5', tray: '320997', tare: '18', pair: 'joints' },
   { n: 'M&S Garlic and Herb', c: 'MS', k: { GARLIC: 3, HERB: 2 }, filmNum: '935' },
   { n: 'M&S Hot Deli BBQ', c: 'MS', k: { BBQ: 2, HOT: 1, DELI: 1 }, discontinued: true },
   { n: 'M&S Hot Deli Butter Basted', c: 'MS', k: { BUTTER: 2, BASTED: 2, HOT: 2, DELI: 2 }, line: '1', pack: 'PLUMA003', sleeveNum: '003' },
   { n: 'M&S Hot Deli Piri Piri', c: 'MS', k: { PIRI: 4, PERI: 4, HOT: 1, DELI: 1 }, line: '1', pack: 'PLUMA003', sleeveNum: '003' },
   { n: 'M&S Jalapeno and Herb Spatchcock', c: 'MS', k: { JALAPENO: 5, GREEN: 3, CHILLI: 4, CHILI: 4, CHILLY: 4, HERB: 1 }, sleeveNum: '998' },
   { n: 'M&S PSO', c: 'MS', k: { PSO: 4, PORK: 2, SAGE: 2, ONION: 2 }, filmNum: '937' },
-  { n: 'M&S Rotisserie Joints', c: 'MS', k: { ROTISSERIE: 3, JOINTS: 3 }, line: '5', tray: '320997', tare: '18', pair: 'joints', sleeveNum: '993' },
+  { n: 'M&S Rotisserie Joints', c: 'MS', k: { ROTISSERIE: 3, JOINTS: 3 }, line: '5', tray: '320997', tare: '18', pair: 'joints' },
   { n: 'M&S Salt and Pepper BDF', c: 'MS', k: { SALT: 2, PEPPER: 2 }, sleeve: '9', tare: '60', sleeveNum: '029' },
   { n: 'M&S Dine In', c: 'MS', alias: ['M&S Salt and Pepper Dine In'], k: { DINE: 5, PROMO: 5, SALT: 2, PEPPER: 2 }, sleeve: '7' },
   { n: 'Ocado CROWN', c: 'OCADO', k: { CROWN: 5, SALT: 2, PEPPER: 2 }, filmNum: '095', sleeveNum: '816' },
@@ -2832,7 +2869,7 @@ const LA_CATALOGUE = [
 
 // Codes read often enough on your sheets to be trusted. A code in this set counts against the
 // products it does not belong to; 998 is left out of that because it is also read for 993.
-const LA_SLEEVE_NUMS = new Set(['993', '994', '003', '025', '029', '177', '816']);
+const LA_SLEEVE_NUMS = new Set(['003', '025', '027', '029', '177', '816']);
 const LA_FILM_NUMS = new Set(['095', '115', '188', '521', '531', '925', '926', '935', '936', '937']);
 const LA_STOP = new Set(['AND', 'THE', 'OF', 'MS', 'BDF', 'OCT', 'NOV', 'DEC', 'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'SEPT']);
 
@@ -3074,7 +3111,7 @@ function laMatch(fields, productNames, learned, exclude) {
   if (pick && pick === best && custRead && !custFromCodes && best.score >= 7 && best.score - second.score >= 3) level = 'green';
   else if (pick && pick.score >= 3) level = 'amber';
   // Two products that only the handwriting tells apart always get a check
-  if (level === 'green' && pick.pair && !pick.rules.includes('sleeve number') && scored.some(x => x !== pick && x.pair === pick.pair && pick.score - x.score < 6)) level = 'amber';
+  if (level === 'green' && pick.pair && scored.some(x => x !== pick && x.pair === pick.pair && pick.score - x.score < 6)) level = 'amber';
   const reasons = [];
   reasons.push(`Customer “${(fields.customer || '').trim() || '—'}” → ${custRead ? LA_CUSTOMER_LABEL[custRead] + (custFromCodes ? ' (from packaging codes)' : '') : 'not recognised'}`);
   reasons.push(`Product “${String(productRaw || '').trim() || '—'}”`);
@@ -3512,6 +3549,8 @@ async function autoThumbFromPdf(pdfDoc, idx) {
 
 // Put the suggestion on the page's selector (only if you haven't picked one yourself)
 function applyAutoToThumb(idx) {
+  const _pg = state.scan && state.scan.pages[idx];
+  if (_pg && _pg.removed) return;
   if (!state.scan || !state.scan.auto) return;
   const a = state.scan.auto[idx];
   const pg = state.scan.pages[idx];
@@ -3605,7 +3644,8 @@ function renderAutoSummary() {
   const el = document.getElementById('auto-summary');
   let html = '';
   if (state.scan && state.scan.auto && Object.keys(state.scan.auto).length) {
-    const items = Object.entries(state.scan.auto).map(([i, a]) => ({ i: +i, a, pg: state.scan.pages[+i] }));
+    const items = Object.entries(state.scan.auto).map(([i, a]) => ({ i: +i, a, pg: state.scan.pages[+i] }))
+      .filter(it => !(it.pg && it.pg.removed));
     const lvl = it => it.pg && it.pg.userSet ? 'user' : (it.a.match ? it.a.match.level : 'red');
     const count = k => items.filter(it => lvl(it) === k).length;
     const flagged = items.filter(it => ['amber', 'red'].includes(lvl(it))).sort((a, b) => (lvl(a) === 'red' ? -1 : 0) - (lvl(b) === 'red' ? -1 : 0) || a.i - b.i);
