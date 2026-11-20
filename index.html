@@ -103,7 +103,8 @@
   #picker-grid { overflow-y: auto; padding: 10px; }
   #picker-grid.cols { display: flex; align-items: flex-start; gap: 10px; }
   #picker-grid.cols .picker-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-  #picker-grid.cols .picker-gap { height: 9px; }
+  #picker-grid.cols .pick { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
   #picker-grid.flat { columns: 230px; column-gap: 4px; }
   .pick { display: block; width: 100%; margin: 0 0 4px; break-inside: avoid; text-align: left; padding: 6px 9px; border: 1px solid #e7e5e4; border-radius: 4px; background: #fafaf9; font-size: 12.5px; cursor: pointer; line-height: 1.3; color: #1c1917; }
   .pick:hover, .pick.first { border-color: #0f766e; background: #ecfdf5; }
@@ -276,7 +277,7 @@
     </svg>
   </div>
   <h1 id="app-title" title="Toggle API Keys">LineAssemblyHub</h1>
-  <span class="tag">v55</span>
+  <span class="tag">v56</span>
   <div class="status" id="storage-status" title="Browser local storage allocation">–</div>
   <span id="vision-badge" title="Google Vision API status" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Vision –</span>
   <span id="correction-badge" title="Correction API status (live-confirmed after first successful call)" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Correction –</span>
@@ -1061,7 +1062,7 @@ function openPicker(sel, pageNo) {
   // Place the list right next to the page's selector (below it, or above if there's more room there)
   const box = document.getElementById('picker-box');
   const r = (sel._btn || sel).getBoundingClientRect();
-  const W = Math.min(980, window.innerWidth - 16);
+  const W = Math.min(1180, window.innerWidth - 16);   // wide enough for “M&S Jalapeno and Herb Spatchcock” on one line
   box.style.width = W + 'px';
   box.style.left = Math.max(8, Math.min(r.left, window.innerWidth - W - 8)) + 'px';
   const below = window.innerHeight - r.bottom - 10, above = r.top - 10;
@@ -1081,10 +1082,10 @@ function closePicker() {
 const LA_PICKER_LAYOUT = [
   [{ cust: 'Aldi' }, { cust: 'Asda' }],
   [{ cust: 'Co-op' }, { cust: 'Iceland' }, { order: [
-    'M&S Jalapeno and Herb Spatchcock', 'M&S AYR Rotisserie', 'M&S Garlic and Herb', 'M&S PSO', 'M&S BBQ Marinated BDF'] }],
+    'M&S Jalapeno and Herb Spatchcock', 'M&S AYR Rotisserie', 'M&S Garlic and Herb', 'M&S PSO'] }],
   [{ order: [
     'M&S Hot Deli Butter Basted', 'M&S Hot Deli Piri Piri',
-    'M&S Salt and Pepper BDF', 'M&S Aromatic Butter BDF', 'M&S Salt and Pepper Dine In',
+    'M&S Salt and Pepper BDF', 'M&S Aromatic Butter BDF', 'M&S BBQ Marinated BDF', 'M&S Salt and Pepper Dine In',
     'M&S Butter Basted Joints', 'M&S Rotisserie Joints'] }, { cust: 'M&S' }],
   [{ cust: 'Ocado' }, { rest: true }],
 ];
@@ -1117,7 +1118,7 @@ function renderPickerGrid(q) {
   } else {
     grid.className = 'cols';
     html = pickerColumns(products).map(col =>
-      `<div class="picker-col">${col.filter(g => g.length).map(g => g.map(btn).join('')).join('<div class="picker-gap"></div>')}</div>`
+      `<div class="picker-col">${col.filter(g => g.length).map(g => g.map(btn).join('')).join('')}</div>`
     ).join('');
   }
   if (words.length && !products.length) html = `<div style="padding:12px;color:#78716c;font-size:13px;">No product matches “${escapeHtml(q)}”.</div>`;
