@@ -64,8 +64,9 @@
   .thumb canvas { width: auto; height: auto; max-width: 100%; max-height: calc(100vh - 330px); transition: transform 0.3s ease; }
   .thumb .rotate-btn { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.8); color: #fff; border: 1px solid #444; border-radius: 4px; padding: 6px 10px; cursor: pointer; font-size: 13px; font-weight: 600; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.3); transition: background 0.2s; }
   .thumb .rotate-btn:hover { background: #000; }
-  .thumb .del-btn { position: absolute; top: 4px; left: 4px; background: rgba(185,28,28,0.9); color: #fff; border: 1px solid #7f1d1d; border-radius: 4px; padding: 6px 10px; cursor: pointer; font-size: 13px; font-weight: 700; z-index: 10; }
-  .thumb .del-btn:hover { background: #991b1b; }
+  .thumb .del-btn { position: absolute; bottom: 5px; right: 5px; background: rgba(255,255,255,0.55); color: #b91c1c; border: 1px solid rgba(185,28,28,0.3); border-radius: 4px; width: 22px; height: 22px; line-height: 1; padding: 0; cursor: pointer; font-size: 13px; opacity: 0.45; z-index: 10; }
+  .thumb:hover .del-btn { opacity: 0.85; }
+  .thumb .del-btn:hover { opacity: 1; background: #b91c1c; color: #fff; border-color: #7f1d1d; }
   .thumb.removed { opacity: 1; }
   .thumb.removed .canvas-wrap, .thumb.removed .assign-btn, .thumb.removed .auto-badge { display: none; }
   .thumb .removed-note { display: none; padding: 18px 12px; text-align: center; color: #7f1d1d; background: #fef2f2; border: 1px dashed #fca5a5; border-radius: 6px; font-size: 13px; }
@@ -99,7 +100,11 @@
   #picker-search { flex: 1; padding: 7px 10px; font-size: 13px; border: 2px solid #d6d3d1; border-radius: 4px; }
   #picker-search:focus { outline: none; border-color: #0f766e; }
   #picker-head .hint { font-size: 11px; color: #a8a29e; white-space: nowrap; }
-  #picker-grid { overflow-y: auto; padding: 10px; columns: 230px; column-gap: 4px; }
+  #picker-grid { overflow-y: auto; padding: 10px; }
+  #picker-grid.cols { display: flex; align-items: flex-start; gap: 10px; }
+  #picker-grid.cols .picker-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+  #picker-grid.cols .picker-gap { height: 9px; }
+  #picker-grid.flat { columns: 230px; column-gap: 4px; }
   .pick { display: block; width: 100%; margin: 0 0 4px; break-inside: avoid; text-align: left; padding: 6px 9px; border: 1px solid #e7e5e4; border-radius: 4px; background: #fafaf9; font-size: 12.5px; cursor: pointer; line-height: 1.3; color: #1c1917; }
   .pick:hover, .pick.first { border-color: #0f766e; background: #ecfdf5; }
   .pick.current { background: #ccfbf1; border-color: #0f766e; font-weight: 600; }
@@ -271,7 +276,7 @@
     </svg>
   </div>
   <h1 id="app-title" title="Toggle API Keys">LineAssemblyHub</h1>
-  <span class="tag">v54</span>
+  <span class="tag">v55</span>
   <div class="status" id="storage-status" title="Browser local storage allocation">–</div>
   <span id="vision-badge" title="Google Vision API status" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Vision –</span>
   <span id="correction-badge" title="Correction API status (live-confirmed after first successful call)" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Correction –</span>
@@ -826,8 +831,8 @@ async function renderThumbs(opts = {}) {
 
     const delBtn = document.createElement('button');
     delBtn.className = 'del-btn';
-    delBtn.textContent = '✕ Remove';
-    delBtn.title = 'This page does not belong in any product — leave it out of the merge';
+    delBtn.textContent = '✕';
+    delBtn.title = 'Remove this page — it does not belong in any product, so leave it out of the merge';
     delBtn.onclick = (e) => { e.stopPropagation(); setPageRemoved(i - 1, true); };
     canvasWrap.appendChild(delBtn);
     
@@ -1071,14 +1076,50 @@ function closePicker() {
   el.setAttribute('aria-hidden', 'true');
   pickerSel = null;
 }
+// Where each product sits in the picker. Columns left to right; inside a column the
+// groups keep this order, and a customer group is alphabetical.
+const LA_PICKER_LAYOUT = [
+  [{ cust: 'Aldi' }, { cust: 'Asda' }],
+  [{ cust: 'Co-op' }, { cust: 'Iceland' }, { order: [
+    'M&S Jalapeno and Herb Spatchcock', 'M&S AYR Rotisserie', 'M&S Garlic and Herb', 'M&S PSO', 'M&S BBQ Marinated BDF'] }],
+  [{ order: [
+    'M&S Hot Deli Butter Basted', 'M&S Hot Deli Piri Piri',
+    'M&S Salt and Pepper BDF', 'M&S Aromatic Butter BDF', 'M&S Salt and Pepper Dine In',
+    'M&S Butter Basted Joints', 'M&S Rotisserie Joints'] }, { cust: 'M&S' }],
+  [{ cust: 'Ocado' }, { rest: true }],
+];
+function pickerColumns(products) {
+  const left = new Map(products.map(p => [laNormName(p.name), p]));
+  const take = (k) => { const v = left.get(k); if (v) left.delete(k); return v; };
+  const byCust = (c) => [...left.values()].filter(p => p.name.toLowerCase().startsWith(c.toLowerCase() + ' '))
+    .sort((a, b) => a.name.localeCompare(b.name)).map(p => take(laNormName(p.name)));
+  const cols = LA_PICKER_LAYOUT.map(col => col.map(g => g.order ? g.order.map(n => take(laNormName(n))).filter(Boolean) : g));
+  // customer and leftover groups are resolved after the named ones, so nothing is listed twice
+  cols.forEach(col => col.forEach((g, i) => {
+    if (Array.isArray(g)) return;
+    col[i] = g.cust ? byCust(g.cust) : [];
+  }));
+  const restCol = cols[cols.length - 1];
+  restCol[restCol.length - 1] = [...left.values()].sort((a, b) => a.name.localeCompare(b.name));
+  return cols;
+}
 function renderPickerGrid(q) {
   const grid = document.getElementById('picker-grid');
   const current = pickerSel ? pickerSel.value : '';
   const words = q.toLowerCase().split(/\s+/).filter(Boolean);
   const products = [...state.products].sort((a, b) => a.name.localeCompare(b.name))
     .filter(p => words.every(w => p.name.toLowerCase().includes(w)));
+  const btn = p => `<button class="pick${p.id === current ? ' current' : ''}" data-v="${p.id}">${formatBrandColor(p.name)}</button>`;
   let html = '';
-  html += products.map(p => `<button class="pick${p.id === current ? ' current' : ''}" data-v="${p.id}">${formatBrandColor(p.name)}</button>`).join('');
+  if (words.length) {
+    grid.className = 'flat';
+    html = products.map(btn).join('');
+  } else {
+    grid.className = 'cols';
+    html = pickerColumns(products).map(col =>
+      `<div class="picker-col">${col.filter(g => g.length).map(g => g.map(btn).join('')).join('<div class="picker-gap"></div>')}</div>`
+    ).join('');
+  }
   if (words.length && !products.length) html = `<div style="padding:12px;color:#78716c;font-size:13px;">No product matches “${escapeHtml(q)}”.</div>`;
   grid.innerHTML = html;
   const firstProduct = grid.querySelector('.pick');
