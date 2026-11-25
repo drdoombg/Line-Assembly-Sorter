@@ -277,7 +277,7 @@
     </svg>
   </div>
   <h1 id="app-title" title="Toggle API Keys">LineAssemblyHub</h1>
-  <span class="tag">v56</span>
+  <span class="tag">v57</span>
   <div class="status" id="storage-status" title="Browser local storage allocation">–</div>
   <span id="vision-badge" title="Google Vision API status" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Vision –</span>
   <span id="correction-badge" title="Correction API status (live-confirmed after first successful call)" style="font-size:11px;padding:2px 7px;border-radius:3px;background:#374151;color:#9ca3af;font-weight:600;cursor:default;">Correction –</span>
@@ -645,7 +645,22 @@ function toast(msg, type = '') {
   toast._t = setTimeout(() => { el.className = ''; }, 6000); 
 }
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
-async function readFileAsBytes(file) { return new Uint8Array(await file.arrayBuffer()); }
+// Windows sometimes refuses the bytes of a file that is still being written, or that lives on a
+// network / OneDrive folder and isn't downloaded yet. Give it a few tries before saying so.
+async function readFileAsBytes(file) {
+  let last;
+  for (let i = 0; i < 4; i++) {
+    try { return new Uint8Array(await file.arrayBuffer()); }
+    catch (err) {
+      last = err;
+      if (err && err.name !== 'NotReadableError' && !/could not be read/i.test(err.message || '')) throw err;
+      await new Promise(r => setTimeout(r, 400 * (i + 1)));
+    }
+  }
+  const e = new Error('Windows wouldn’t let the browser read this file. It may still be copying from the scanner, or it sits in a network/OneDrive folder that isn’t downloaded. Copy it to this PC and drop it again, or press Try again.');
+  e.name = 'NotReadableError'; e.cause = last;
+  throw e;
+}
 function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 function formatBrandColor(name) {
@@ -3468,9 +3483,12 @@ async function autoRun() {
       if (e.forced) { e.type = e.forced; delete e.forced; if (!e.bytes) e.bytes = await readFileAsBytes(e.file); }
       else {
         e.status = 'Identifying…'; renderAutoFiles();
-        try { e.bytes = await readFileAsBytes(e.file); await autoClassify(e, dpi); }
-        catch (err) { console.error('[Auto classify]', err); e.type = 'unknown'; e.error = err.message; }
-        e.status = e.type === 'unknown' ? 'Couldn’t tell — pick the type' : 'Identified';
+        try { e.bytes = await readFileAsBytes(e.file); await autoClassify(e, dpi); e.error = ''; e.unreadable = false; }
+        catch (err) {
+          console.error('[Auto classify]', err);
+          e.type = 'unknown'; e.error = err.message; e.unreadable = err.name === 'NotReadableError';
+        }
+        e.status = e.unreadable ? 'Could not be read' : (e.type === 'unknown' ? 'Couldn’t tell — pick the type' : 'Identified');
       }
       ided++;
       autoProgress(`Identified ${ided} of ${todo.length} files`, (ided / todo.length) * 10);
@@ -3669,13 +3687,22 @@ function renderAutoFiles() {
   el.innerHTML = AUTO.files.map((e, i) => {
     const type = { la: 'Line Assembly', mixing: 'Mixing Batch Records', unknown: 'Unknown', waiting: '…' }[e.type] || e.type;
     const pick = e.type === 'unknown' && !AUTO.running
-      ? `<button class="btn small" data-auto-type="la" data-i="${i}">It's Line Assembly</button> <button class="btn small" data-auto-type="mixing" data-i="${i}">It's Mixing</button>` : '';
+      ? (e.unreadable
+        ? `<button class="btn small primary" data-auto-retry="${i}">Try again</button>`
+        : `<button class="btn small" data-auto-type="la" data-i="${i}">It's Line Assembly</button> <button class="btn small" data-auto-type="mixing" data-i="${i}">It's Mixing</button>`) : '';
     return `<div class="auto-file"><span class="auto-fname">${escapeHtml(e.name)}</span>
       <span class="auto-type t-${e.type}">${type}</span>
       <span class="auto-fstatus">${escapeHtml(e.status || '')}${e.error ? ' — ' + escapeHtml(e.error) : ''}</span>${pick}</div>`;
   }).join('');
 }
 document.getElementById('auto-files').addEventListener('click', (ev) => {
+  const retry = ev.target.closest('[data-auto-retry]');
+  if (retry) {
+    const e = AUTO.files[+retry.dataset.autoRetry]; if (!e) return;
+    e.type = null; e.unreadable = false; e.error = ''; e.status = 'Queued'; e.bytes = null;
+    renderAutoFiles(); autoRun();
+    return;
+  }
   const b = ev.target.closest('[data-auto-type]'); if (!b) return;
   const e = AUTO.files[+b.dataset.i]; if (!e) return;
   e.forced = b.dataset.autoType; e.status = 'Queued'; e.error = '';
